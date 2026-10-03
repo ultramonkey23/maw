@@ -58,3 +58,23 @@ describe('MAW Levenshtein memory-scaled correctness', () => {
     expect(levenshtein(short, long)).toBe(8176);
   });
 });
+
+describe('MAW single-candidate block safety', () => {
+  it('does not edit unrelated code just because boundary lines match', () => {
+    const actual = ['function launch() {', '  DELETE_ALL_TABLES();', '}'].join('\n');
+    const expected = ['function launch() {', '  return approvedPlan;', '}'].join('\n');
+    expect([...BlockAnchorReplacer(actual, expected)]).toEqual([]);
+    expect(fuzzyReplace(actual, expected, 'changed')).toBeNull();
+  });
+
+  it('retains useful fuzzy recovery for a nearly matching middle line', () => {
+    const actual = ['function launch() {', '  return counter + 11;', '}'].join('\n');
+    const expected = ['function launch() {', '  return counter + 10;', '}'].join('\n');
+    expect([...BlockAnchorReplacer(actual, expected)]).toEqual([actual]);
+  });
+
+  it('does not reject an unmodified anchored block', () => {
+    const block = ['function launch() {', '  return counter + 10;', '}'].join('\n');
+    expect([...BlockAnchorReplacer(block, block)]).toEqual([block]);
+  });
+});
