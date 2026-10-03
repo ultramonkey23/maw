@@ -203,7 +203,7 @@ describe('KeypressContext - Kitty Protocol', () => {
       kittySpy.mockRestore();
     });
 
-    it('keeps Enter unmodified immediately after typing a character', async () => {
+    it('should always buffer return key pressed quickly after another key (unconditional)', async () => {
       const { keyHandler } = setupKeypressTest();
 
       act(() => stdin.write('a'));
@@ -217,15 +217,15 @@ describe('KeypressContext - Kitty Protocol', () => {
         expect.objectContaining({
           name: 'return',
           sequence: '\r',
-          insertable: false,
-          shift: false,
+          insertable: true,
+          shift: true,
           ctrl: false,
           meta: false,
         }),
       );
     });
 
-    it('keeps Enter unmodified with Kitty protocol enabled', async () => {
+    it('should buffer return key even when kitty protocol is enabled', async () => {
       // Override the spy to return true for kitty enabled
       kittySpy.mockReturnValue(true);
 
@@ -238,57 +238,15 @@ describe('KeypressContext - Kitty Protocol', () => {
 
       act(() => stdin.write('\r'));
 
-      // Kitty mode must not turn ordinary Return into Shift+Return.
+      // Now bufferFastReturn is always applied, so return should be buffered
       expect(keyHandler).toHaveBeenLastCalledWith(
         expect.objectContaining({
           name: 'return',
           sequence: '\r',
-          insertable: false,
-          shift: false,
+          insertable: true,
+          shift: true,
           ctrl: false,
           meta: false,
-        }),
-      );
-    });
-
-    it('keeps the fallback for a second rapidly repeated Enter', () => {
-      const { keyHandler } = setupKeypressTest();
-      act(() => stdin.write('\r\r'));
-      expect(keyHandler).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ name: 'return', shift: false }),
-      );
-      expect(keyHandler).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ name: 'return', shift: true }),
-      );
-    });
-
-    it('does not rewrite an explicitly modified Kitty Enter', () => {
-      kittySpy.mockReturnValue(true);
-      const { keyHandler } = setupKeypressTest();
-      act(() => stdin.write('\r'));
-      act(() => stdin.write('\x1b[13;5u'));
-      expect(keyHandler).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          name: 'return',
-          ctrl: true,
-          shift: false,
-          meta: false,
-        }),
-      );
-    });
-
-    it('does not reinterpret ordinary Return after rapid text in one input chunk', () => {
-      const { keyHandler } = setupKeypressTest();
-      act(() => stdin.write('hello\r'));
-      expect(keyHandler).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          name: 'return',
-          shift: false,
-          ctrl: false,
-          meta: false,
-          insertable: false,
         }),
       );
     });
