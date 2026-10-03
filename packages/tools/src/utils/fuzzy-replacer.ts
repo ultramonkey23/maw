@@ -5,7 +5,7 @@
  */
 
 // Similarity thresholds for block anchor fallback matching
-const SINGLE_CANDIDATE_SIMILARITY_THRESHOLD = 0.0;
+const SINGLE_CANDIDATE_SIMILARITY_THRESHOLD = 0.3;
 const MULTIPLE_CANDIDATES_SIMILARITY_THRESHOLD = 0.3;
 
 /**
@@ -354,7 +354,8 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
     return;
   }
 
-  // Handle single candidate scenario (using relaxed threshold)
+  // A unique anchor pair is not proof that its middle lines are the intended
+  // code. Reject unrelated interiors instead of blindly overwriting them.
   if (candidates.length === 1) {
     const { startLine, endLine } = candidates[0];
     const actualBlockSize = endLine - startLine + 1;
