@@ -1,12 +1,27 @@
-## LLxprt Code Added Memories
-- CRITICAL: NEVER delete, remove, or modify the .llxprt/ directory or any of its contents (LLXPRT.md, settings.json, skills/, commands/). This directory contains project memories, settings, and skills that are version-controlled.
-- DO NOT COMMIT .llxprt/LLXPRT.md if you have added issue-specific memories. We do not need to save them permanently in the context for all agents.
-- When working on a GitHub issue in this repo, use the llxprt-issue-workflow skill (.llxprt/skills/llxprt-issue-workflow) — it covers branch setup, gh usage, planning placement, subagent delegation, the verification cycle, ocr review, PR creation, CI/CodeRabbit watching, and merge policy.
-- When writing or modifying tests in this repo, use the typescript-test-writing skill (.llxprt/skills/typescript-test-writing); dev-docs/RULES.md is its source of truth.
-- Smoke test profile: luna. Run `bun scripts/start.ts --profile-load luna "write me a haiku and nothing else"`.
-- DO NOT MERGE PRs YOURSELF. Wait until the user explicitly says to merge. Always report PR status (CI green, threads resolved, ready to merge) and ask for confirmation before merging.
-- When asked to create an issue, do not assign it to the user unless specifically asked.
-- This project is moving to bun/Typescript so no new js files or vitest/node tests should be created, everything should be TS/Bun and a bun test.
-- Check the current year before each new file you create, do not stamp last year on a new file's copyright.
-- Use the PR-creator skill when creating PRs if you have it available.
-- For Claude Code (Anthropic OAuth), the Claude Code-required prompt must remain in the system prompt.
+# MAW — Fork-local LLxprt client instructions
+
+MAW is Cody's LLxprt Code fork and a prospective execution body for Ultramonkeydog Lab. MAW does not replace the Lab's Sage, Code Prime, Grem ecology, evidence owners, project canon, or Git convergence mechanisms. This document describes MAW client mechanics; it is not a second Lab constitution.
+
+## Source work
+
+- Follow Cody's newest explicit scope. Recover the affected source, callers, consumers, runtime path, and applicable tests before making implementation claims.
+- Prefer repairing or connecting working upstream mechanisms rather than creating parallel provider/auth, routing, context, subagent, or mutation frameworks.
+- Keep the existing `start` entry upstream-compatible. `bun run start:maw` is the explicit fork developer launcher for OpenRouter + `xiaomi/mimo-v2.6-pro`. A provider alias's preferred model alone does not select the startup provider.
+- Continue to support upstream alternative providers. Treat MiMo as Cody's starting preference, not a permanent capability constraint.
+- Reuse the existing OpenRouter credential resolution. Never put API keys in commands, committed profiles, test fixtures, logs, or generated documentation.
+- Make real tools work rather than substituting mocks that report success while silently removing parsing, image, edit, or execution functionality.
+- Follow the upstream TypeScript/Bun testing conventions and inspect `dev-docs/RULES.md` and `.llxprt/skills/typescript-test-writing` when editing tests. Run focused checks and a real launch when the host supports them; state gaps otherwise.
+- Inspect local version, Bun/Node/tool availability, upstream movement, and Git state before assuming that a prior host observation still applies.
+- Protect recovery and concurrency. Do not overwrite another writer's work or rewrite shared history merely to complete a wave.
+- Integrate completed, validated MAW changes into the fork's canonical GitHub branch through its actual available workflow. Never equate a PR, CI status, commit, or static test with real runtime capability.
+
+## When operating inside Ultramonkeydog Lab
+
+- Read the target repository's `AGENTS.md` and current live Lab/project owners; the target repo, not MAW memory, owns its operating contract.
+- For Lab repository mutations, respect its direct-`master`, `labctl finish`, mutation, evidence, budget, and collision-domain rules. Do not automatically transplant upstream LLxprt PR and CI workflows into the Lab.
+- Use existing `labctl` / Code Prime / Grem / execution interfaces where relevant and actually available. A Lab mission packet is an execution unit, not a reason to forget the wider session or portfolio.
+- Separate intent, implementation, real execution, observed results, and later learning; do not claim adaptation until later behavior demonstrably consumes the evidence.
+
+## Evolution focus
+
+Start with dependable provider startup, actual source edits, tool correctness, Windows/Termux compatibility, recovery from long sessions, and measured overhead. Then dogfood MAW on real Lab coding work; let observed blockers and outcomes guide subsequent MAW changes. Do not turn this guidance into a hardcoded priority list or stop rule.
