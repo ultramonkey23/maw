@@ -62,8 +62,8 @@ describe('provider alias defaults (#1543, #2056)', () => {
     }
 
     const startup = packageJson.scripts['start:maw'];
-    const provider = startup.match(/--provider\\s+(\\S+)/)?.[1];
-    const model = startup.match(/--model\\s+(\\S+)/)?.[1];
+    const provider = startup.match(/--provider\s+(\S+)/)?.[1];
+    const model = startup.match(/--model\s+(\S+)/)?.[1];
     expect(provider).toBeDefined();
     expect(model).toBeDefined();
     const entry = entries.find((candidate) => candidate.alias === provider);
