@@ -251,6 +251,34 @@ describe('KeypressContext - Kitty Protocol', () => {
       );
     });
 
+    it('keeps the fallback for a second rapidly repeated Enter', () => {
+      const { keyHandler } = setupKeypressTest();
+      act(() => stdin.write('\r\r'));
+      expect(keyHandler).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ name: 'return', shift: false }),
+      );
+      expect(keyHandler).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ name: 'return', shift: true }),
+      );
+    });
+
+    it('does not rewrite an explicitly modified Kitty Enter', () => {
+      kittySpy.mockReturnValue(true);
+      const { keyHandler } = setupKeypressTest();
+      act(() => stdin.write('\r'));
+      act(() => stdin.write('\x1b[13;5u'));
+      expect(keyHandler).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          name: 'return',
+          ctrl: true,
+          shift: false,
+          meta: false,
+        }),
+      );
+    });
+
     it('does not reinterpret ordinary Return after rapid text in one input chunk', () => {
       const { keyHandler } = setupKeypressTest();
       act(() => stdin.write('hello\r'));
