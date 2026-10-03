@@ -719,21 +719,6 @@ const REPLACERS: Replacer[] = [
 ];
 
 /**
- * Builds the final replacement string, unescaping escape sequences when
- * the matched content has no backslashes but the find/new strings do.
- */
-function buildFinalReplacement(
-  search: string,
-  newString: string,
-  oldStringHasEscapes: boolean,
-  newStringHasEscapes: boolean,
-): string {
-  const shouldUnescape =
-    (oldStringHasEscapes || newStringHasEscapes) && !search.includes('\\');
-  return shouldUnescape ? unescapeEscapedSequences(newString) : newString;
-}
-
-/**
  * Attempts a single replacement using the given search match.
  * Returns the result object, or null if this search is not actionable.
  */
@@ -788,9 +773,6 @@ export function fuzzyReplace(
     return null;
   }
 
-  const oldStringHasEscapes = ESCAPE_SEQUENCE_TEST_PATTERN.test(oldString);
-  const newStringHasEscapes = ESCAPE_SEQUENCE_TEST_PATTERN.test(newString);
-
   let notFound = true;
 
   for (const replacer of REPLACERS) {
@@ -799,17 +781,13 @@ export function fuzzyReplace(
       if (index === -1) continue;
       notFound = false;
 
-      const finalReplacement = buildFinalReplacement(
-        search,
-        newString,
-        oldStringHasEscapes,
-        newStringHasEscapes,
-      );
-
+      // Match selection may be fuzzy, but replacement text is literal source data.
+      // Never reinterpret backslashes, quotes, or escape sequences supplied by
+      // the caller: that corrupts Python, paths, regular expressions, and code.
       if (replaceAll) {
-        return tryReplaceAll(content, search, finalReplacement);
+        return tryReplaceAll(content, search, newString);
       }
-      const single = trySingleReplacement(content, search, finalReplacement);
+      const single = trySingleReplacement(content, search, newString);
       if (single) {
         return single;
       }
