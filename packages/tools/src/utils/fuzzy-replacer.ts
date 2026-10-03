@@ -20,29 +20,37 @@ export type Replacer = (
  * Levenshtein distance algorithm implementation
  */
 export function levenshtein(a: string, b: string): number {
-  // Handle empty strings
-  if (a === '' || b === '') {
-    return Math.max(a.length, b.length);
+  if (a === b) {
+    return 0;
   }
-  const matrix = Array.from({ length: a.length + 1 }, (_, i) =>
-    Array.from({ length: b.length + 1 }, (_, j) => {
-      if (i === 0) return j;
-      if (j === 0) return i;
-      return 0;
-    }),
-  );
+  if (a.length === 0) {
+    return b.length;
+  }
+  if (b.length === 0) {
+    return a.length;
+  }
 
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost,
+  // Each row depends only on the previous row. Keep the shorter string on
+  // the columns so memory grows with min(a.length, b.length), not their product.
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  let previous = Array.from({ length: shorter.length + 1 }, (_, j) => j);
+  let current: number[] = new Array<number>(shorter.length + 1);
+
+  for (let i = 1; i <= longer.length; i++) {
+    current[0] = i;
+    for (let j = 1; j <= shorter.length; j++) {
+      const substitutionCost = longer[i - 1] === shorter[j - 1] ? 0 : 1;
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + substitutionCost,
       );
     }
+    [previous, current] = [current, previous];
   }
-  return matrix[a.length][b.length];
+
+  return previous[shorter.length];
 }
 
 /**
