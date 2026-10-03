@@ -146,19 +146,10 @@ function nonKeyboardEventFilter(
 }
 
 function bufferFastReturn(keypressHandler: KeypressHandler): KeypressHandler {
-  let lastReturnTime = -Infinity;
+  let lastKeyTime = 0;
   return (key: Key) => {
     const now = Date.now();
-    // A quickly typed letter followed by Enter is still an ordinary Enter.
-    // Only a rapid second unmodified Enter uses the fallback for terminals
-    // that cannot distinguish Shift+Enter from Enter.
-    const isRapidSecondReturn =
-      key.name === 'return' &&
-      key.shift !== true &&
-      key.ctrl !== true &&
-      key.meta !== true &&
-      now - lastReturnTime <= FAST_RETURN_TIMEOUT;
-    if (isRapidSecondReturn) {
+    if (key.name === 'return' && now - lastKeyTime <= FAST_RETURN_TIMEOUT) {
       keypressHandler({
         ...key,
         name: 'return',
@@ -171,7 +162,7 @@ function bufferFastReturn(keypressHandler: KeypressHandler): KeypressHandler {
     } else {
       keypressHandler(key);
     }
-    lastReturnTime = key.name === 'return' ? now : -Infinity;
+    lastKeyTime = now;
   };
 }
 
