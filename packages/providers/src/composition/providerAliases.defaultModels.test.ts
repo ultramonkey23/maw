@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
+import { readFileSync } from 'node:fs';
 
 import { loadProviderAliasEntries } from './providerAliases.js';
 
@@ -42,6 +43,32 @@ describe('provider alias defaults (#1543, #2056)', () => {
     const entry = findAlias('OpenRouter');
     expect(entry).toBeDefined();
     expect(entry?.config.defaultModel).toBe('xiaomi/mimo-v2.6-pro');
+  });
+
+  it('MAW source launcher must name a registered provider with a matching model', () => {
+    const packageJson: unknown = JSON.parse(
+      readFileSync(new URL('../../../../package.json', import.meta.url), 'utf8'),
+    );
+    if (
+      typeof packageJson !== 'object' ||
+      packageJson === null ||
+      !('scripts' in packageJson) ||
+      typeof packageJson.scripts !== 'object' ||
+      packageJson.scripts === null ||
+      !('start:maw' in packageJson.scripts) ||
+      typeof packageJson.scripts['start:maw'] !== 'string'
+    ) {
+      throw new Error('MAW source launch script is missing');
+    }
+
+    const startup = packageJson.scripts['start:maw'];
+    const provider = startup.match(/--provider\\s+(\\S+)/)?.[1];
+    const model = startup.match(/--model\\s+(\\S+)/)?.[1];
+    expect(provider).toBeDefined();
+    expect(model).toBeDefined();
+    const entry = entries.find((candidate) => candidate.alias === provider);
+    expect(entry).toBeDefined();
+    expect(model).toBe(entry?.config.defaultModel);
   });
 
   it('Fireworks defaults to fireworks/minimax-m3', () => {
