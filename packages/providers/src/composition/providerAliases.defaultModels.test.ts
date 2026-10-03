@@ -38,10 +38,10 @@ describe('provider alias defaults (#1543, #2056)', () => {
     expect(entry?.config.defaultModel).toBe('zai-org/GLM-5-TEE');
   });
 
-  it('OpenRouter defaults to nvidia/nemotron-nano-9b-v2', () => {
+  it('OpenRouter defaults to xiaomi/mimo-v2.6-pro', () => {
     const entry = findAlias('OpenRouter');
     expect(entry).toBeDefined();
-    expect(entry?.config.defaultModel).toBe('nvidia/nemotron-nano-9b-v2');
+    expect(entry?.config.defaultModel).toBe('xiaomi/mimo-v2.6-pro');
   });
 
   it('Fireworks defaults to fireworks/minimax-m3', () => {
@@ -106,3 +106,4 @@ describe('provider alias defaults (#1543, #2056)', () => {
     });
   });
 });
+
