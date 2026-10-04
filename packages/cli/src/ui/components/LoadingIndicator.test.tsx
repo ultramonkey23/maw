@@ -51,33 +51,42 @@ describe('<LoadingIndicator />', () => {
 
   describe('MAW live status', () => {
     it('labels a real response without suggesting tool execution', () => {
-      const frame = renderWithContext(
-        <LoadingIndicator currentLoadingPhrase="Reading context" elapsedTime={3} />,
-        StreamingState.Responding,
-      ).lastFrame() ?? '';
+      const frame =
+        renderWithContext(
+          <LoadingIndicator
+            currentLoadingPhrase="Reading context"
+            elapsedTime={3}
+          />,
+          StreamingState.Responding,
+        ).lastFrame() ?? '';
       expect(frame).toContain('RESPONSE');
       expect(frame).toContain('Reading context');
       expect(frame).not.toContain('APPROVAL');
     });
 
     it('makes approval visibly distinct and avoids a misleading cancel timer', () => {
-      const frame = renderWithContext(
-        <LoadingIndicator currentLoadingPhrase="Confirm change" elapsedTime={3} />,
-        StreamingState.WaitingForConfirmation,
-      ).lastFrame() ?? '';
+      const frame =
+        renderWithContext(
+          <LoadingIndicator
+            currentLoadingPhrase="Confirm change"
+            elapsedTime={3}
+          />,
+          StreamingState.WaitingForConfirmation,
+        ).lastFrame() ?? '';
       expect(frame).toContain('APPROVAL');
       expect(frame).toContain('Confirm change');
       expect(frame).not.toContain('esc to cancel');
     });
 
     it('labels interactive shell focus instead of reasoning', () => {
-      const frame = renderWithContext(
-        <LoadingIndicator
-          currentLoadingPhrase={INTERACTIVE_SHELL_WAITING_PHRASE}
-          elapsedTime={3}
-        />,
-        StreamingState.Responding,
-      ).lastFrame() ?? '';
+      const frame =
+        renderWithContext(
+          <LoadingIndicator
+            currentLoadingPhrase={INTERACTIVE_SHELL_WAITING_PHRASE}
+            elapsedTime={3}
+          />,
+          StreamingState.Responding,
+        ).lastFrame() ?? '';
       expect(frame).toContain('SHELL');
       expect(frame).not.toContain('APPROVAL');
     });

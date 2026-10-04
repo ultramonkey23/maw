@@ -5,8 +5,8 @@ exports[`<MarkdownDisplay /> renders nothing for empty text 1`] = `""`;
 exports[`<MarkdownDisplay /> renders a simple paragraph 1`] = `"Hello, world."`;
 
 exports[`<MarkdownDisplay /> with Windows line endings renders headers with correct levels 1`] = `
-"Header 1
-Header 2
+"█ Header 1
+▌ Header 2
 Header 3
 Header 4
 "
@@ -43,9 +43,9 @@ exports[`<MarkdownDisplay /> with Windows line endings renders ordered lists 1`]
 
 exports[`<MarkdownDisplay /> with Windows line endings renders horizontal rules 1`] = `
 "Hello
----
+──────────────────────────────────────────────────────────────────────────────
 World
----
+──────────────────────────────────────────────────────────────────────────────
 Test
 "
 `;
@@ -75,7 +75,7 @@ Paragraph 2."
 `;
 
 exports[`<MarkdownDisplay /> with Windows line endings correctly parses a mix of markdown elements 1`] = `
-"Main Title
+"█ Main Title
 
 Here is a paragraph.
 
@@ -93,8 +93,8 @@ exports[`<MarkdownDisplay /> with Windows line endings hides line numbers in cod
 exports[`<MarkdownDisplay /> with Windows line endings shows line numbers in code blocks when showLineNumbers is true 1`] = `" 1 const x = 1;"`;
 
 exports[`<MarkdownDisplay /> with Unix line endings renders headers with correct levels 1`] = `
-"Header 1
-Header 2
+"█ Header 1
+▌ Header 2
 Header 3
 Header 4
 "
@@ -131,9 +131,9 @@ exports[`<MarkdownDisplay /> with Unix line endings renders ordered lists 1`] = 
 
 exports[`<MarkdownDisplay /> with Unix line endings renders horizontal rules 1`] = `
 "Hello
----
+──────────────────────────────────────────────────────────────────────────────
 World
----
+──────────────────────────────────────────────────────────────────────────────
 Test
 "
 `;
@@ -163,7 +163,7 @@ Paragraph 2."
 `;
 
 exports[`<MarkdownDisplay /> with Unix line endings correctly parses a mix of markdown elements 1`] = `
-"Main Title
+"█ Main Title
 
 Here is a paragraph.
 

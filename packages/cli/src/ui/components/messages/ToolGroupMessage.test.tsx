@@ -17,6 +17,7 @@ import type {
   Todo,
 } from '@vybestack/llxprt-code-core';
 import { TodoContext } from '../../contexts/TodoContext.js';
+import { TOOL_STATUS } from '../../constants.js';
 import { Colors } from '../../colors.js';
 
 // Mock child components to isolate ToolGroupMessage behavior
@@ -538,6 +539,43 @@ describe('<ToolGroupMessage />', () => {
       const frame = lastFrame();
       expect(frame).toContain('read_file');
       expect(frame).toContain('Read README');
+    });
+  });
+
+  describe('Status tally', () => {
+    it('summarizes mixed tool statuses severity-first on the group identity row', () => {
+      const toolCalls = [
+        createToolCall({ callId: 'tool-1', status: ToolCallStatus.Success }),
+        createToolCall({ callId: 'tool-2', status: ToolCallStatus.Pending }),
+        createToolCall({ callId: 'tool-3', status: ToolCallStatus.Error }),
+      ];
+      const { lastFrame } = render(
+        <ToolGroupMessage {...baseProps} toolCalls={toolCalls} />,
+      );
+      expect(lastFrame()).toContain(`x1 o1 ${TOOL_STATUS.SUCCESS}1`);
+    });
+
+    it('shows no tally for a single tool call whose row already carries its status', () => {
+      const toolCalls = [createToolCall({ status: ToolCallStatus.Success })];
+      const { lastFrame } = render(
+        <ToolGroupMessage {...baseProps} toolCalls={toolCalls} />,
+      );
+      expect(lastFrame()).not.toContain(`${TOOL_STATUS.SUCCESS}1`);
+    });
+
+    it('keeps the tally visible even when the group has no agent identity', () => {
+      const toolCalls = [
+        createToolCall({ callId: 'tool-1', status: ToolCallStatus.Executing }),
+        createToolCall({ callId: 'tool-2', status: ToolCallStatus.Executing }),
+      ];
+      const { lastFrame } = render(
+        <ToolGroupMessage
+          {...baseProps}
+          agentId={undefined}
+          toolCalls={toolCalls}
+        />,
+      );
+      expect(lastFrame()).toContain('⊷2');
     });
   });
 

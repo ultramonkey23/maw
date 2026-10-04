@@ -10,7 +10,7 @@ exports[`<ToolGroupMessage /> Golden Snapshots renders single successful tool ca
 
 exports[`<ToolGroupMessage /> Golden Snapshots renders multiple tool calls with different statuses 1`] = `
 " ╭──────────────────────────────────────────────────────────────────────────────────────────────────
- │ Agent: helper-agent
+ │ Agent: helper-agent x1 o1 ✓1
  │
  │MockTool[tool-1]: ✓ successful-tool - This tool succeeded (medium)
  │
@@ -39,7 +39,7 @@ exports[`<ToolGroupMessage /> Golden Snapshots renders shell command with yellow
 
 exports[`<ToolGroupMessage /> Golden Snapshots renders mixed tool calls including shell command 1`] = `
 " ╭──────────────────────────────────────────────────────────────────────────────────────────────────
- │ Agent: helper-agent
+ │ Agent: helper-agent ⊷1 o1 ✓1
  │
  │MockTool[tool-1]: ✓ read_file - Read a file (medium)
  │
@@ -51,7 +51,7 @@ exports[`<ToolGroupMessage /> Golden Snapshots renders mixed tool calls includin
 
 exports[`<ToolGroupMessage /> Golden Snapshots renders with limited terminal height 1`] = `
 " ╭──────────────────────────────────────────────────────────────────────────────────────────────────
- │ Agent: helper-agent
+ │ Agent: helper-agent ✓2
  │
  │MockTool[tool-1]: ✓ tool-with-result - Tool with output (medium)
  │
@@ -96,7 +96,7 @@ exports[`<ToolGroupMessage /> Border Color Logic uses yellow border for shell co
 
 exports[`<ToolGroupMessage /> Border Color Logic uses gray border when all tools are successful and no shell commands 1`] = `
 " ╭──────────────────────────────────────────────────────────────────────────────────────────────────
- │ Agent: helper-agent
+ │ Agent: helper-agent ✓2
  │
  │MockTool[tool-123]: ✓ test-tool - A tool for testing (medium)
  │
@@ -106,7 +106,7 @@ exports[`<ToolGroupMessage /> Border Color Logic uses gray border when all tools
 
 exports[`<ToolGroupMessage /> Height Calculation calculates available height correctly with multiple tools with results 1`] = `
 " ╭──────────────────────────────────────────────────────────────────────────────────────────────────
- │ Agent: helper-agent
+ │ Agent: helper-agent ✓3
  │
  │MockTool[tool-1]: ✓ test-tool - A tool for testing (medium)
  │
@@ -118,7 +118,7 @@ exports[`<ToolGroupMessage /> Height Calculation calculates available height cor
 
 exports[`<ToolGroupMessage /> Confirmation Handling shows confirmation dialog for first confirming tool only 1`] = `
 " ╭──────────────────────────────────────────────────────────────────────────────────────────────────
- │ Agent: helper-agent
+ │ Agent: helper-agent ?2
  │
  │MockTool[tool-1]: ? first-confirm - A tool for testing (high)
  │MockConfirmation: Confirm first tool
