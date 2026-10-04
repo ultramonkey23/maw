@@ -79,6 +79,18 @@ describe('<AiMessage />', () => {
     mockGetEphemeralSetting = vi.fn().mockReturnValue(true);
   });
 
+  describe('MAW output rail', () => {
+    it('marks agent output without replacing the actual response or model', () => {
+      const { lastFrame } = renderWithProviders(
+        <AiMessage {...baseProps} model="active-model" />,
+        { turn: { streamingState: StreamingState.Idle } },
+      );
+      const frame = lastFrame() ?? '';
+      expect(frame).toContain('| MockMarkdown:Hello, world!');
+      expect(frame).toContain('active-model');
+    });
+  });
+
   describe('model name display', () => {
     it('should render model name when model prop is provided', () => {
       const { lastFrame } = renderWithProviders(
