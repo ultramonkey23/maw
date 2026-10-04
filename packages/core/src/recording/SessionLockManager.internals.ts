@@ -32,7 +32,14 @@
  * Hardened ownership safety (Item 3):
  * - Random backward-compatible owner tokens identify each acquisition.
  * - Locks are published atomically via temp-file + hard-link so no partial
- *   lock content can ever appear at the lock path.
+ *   lock content can ever appear at the lock path.  Filesystems that deny
+ *   hard links (Android/Termux rejects `link(2)` with EACCES across shell,
+ *   Node and Bun) fall back to an exclusive `copyFile(COPYFILE_EXCL)` of the
+ *   already-synced temp, which keeps both publication invariants: it never
+ *   displaces an existing entry (EEXIST instead), and it never exposes the
+ *   lock path before the complete payload is written.  Symlinks are
+ *   deliberately not used as a substitute — their lstat identity and cleanup
+ *   lifecycle differ (the sweeps refuse to touch symlinked artifacts).
  * - Unreadable/recent lock files are treated as **busy**, not instantly stale.
  * - Stale takeover re-reads the lock before unlinking to avoid removing a
  *   replacement live lock; the final create uses atomic exclusive creation.
@@ -46,8 +53,10 @@
  *   at claim time.  It is installed exclusively via temp-file + hard-link
  *   (EEXIST means another process holds it), reclaimed only when its own
  *   payload indicates abandonment, and a reclaimer never displaces a live
- *   claimant: abandonment is judged against a hard-link probe, so a guard
- *   that is still held is never renamed or unlinked.  Every mutator
+ *   claimant: abandonment is judged against a probe snapshot of the guard —
+ *   a hard link where links are available, a byte copy that preserves the
+ *   guard's mtime where they are not — so a guard that is still held is
+ *   never renamed or unlinked.  Every mutator
  *   verifies via {@link verifyTransitionClaim} that the guard still
  *   carries its own claimToken and the lock still has the recorded dev/ino
  *   before touching lockPath.  Release is ownership-checked.  Guard crash
@@ -71,7 +80,13 @@
  * through exclusive creation, so it can lose but cannot destroy.  The
  * protocol also assumes a local filesystem; `link`, `rename` and `O_EXCL`
  * are not dependable over NFS or SMB, and `process.kill(pid, 0)` is
- * host-local while a lock carries no hostname.
+ * host-local while a lock carries no hostname.  Where `link` is denied
+ * (Android/Termux), exclusive publication degrades to
+ * `copyFile(COPYFILE_EXCL)`: still exclusive and complete once it returns,
+ * but without link's no-partial-visibility window, so a process killed
+ * mid-copy can leave a partial lock that the existing unreadable/corrupt
+ * rules judge as busy (or stale only past the age bound) — never instantly
+ * stale and never destroyed.
  */
 
 import * as fs from 'node:fs/promises';
@@ -199,6 +214,58 @@ async function statIdentity(filePath: string): Promise<FileIdentity | null> {
 }
 
 /**
+ * Error codes meaning "this filesystem will not give me a hard link at all",
+ * as opposed to "this particular link attempt lost a race".
+ *
+ * Android/Termux rejects `link(2)` with EACCES on app-private storage across
+ * shell, Node and Bun (1.3.14 and 1.4.2), while symlinks, exclusive
+ * directories and `wx` creation work there.  Other platforms express the same
+ * condition as EPERM/ENOSYS/EOPNOTSUPP/ENOTSUP/EXDEV.  EEXIST is deliberately
+ * absent: it means the target is taken and must keep its existing meaning.
+ */
+const HARD_LINK_UNAVAILABLE_CODES = new Set([
+  'EACCES',
+  'EPERM',
+  'ENOSYS',
+  'EOPNOTSUPP',
+  'ENOTSUP',
+  'EXDEV',
+]);
+
+function isHardLinkUnavailable(error: unknown): boolean {
+  return HARD_LINK_UNAVAILABLE_CODES.has(
+    (error as NodeJS.ErrnoException).code ?? '',
+  );
+}
+
+/**
+ * Publish `source` at `target` exclusively, never displacing an occupant.
+ *
+ * Prefers `link`, whose atomicity is the strongest available: `target` only
+ * ever appears carrying the complete, already-synced `source` payload.  Where
+ * the filesystem denies hard links, falls back to
+ * `copyFile(source, target, COPYFILE_EXCL)`, which preserves the two
+ * invariants callers rely on — EEXIST instead of clobbering, and a complete
+ * payload at `target` once the call returns.  Everything else rethrows, so a
+ * genuine I/O failure is never mistaken for "the target is busy".
+ *
+ * `symlink` is not a fallback: its lstat identity and the cleanup sweeps'
+ * non-symlink rules would change the lifecycle of every artifact downstream.
+ */
+async function linkOrCopyExclusive(
+  source: string,
+  target: string,
+): Promise<void> {
+  try {
+    await fs.link(source, target);
+    return;
+  } catch (error: unknown) {
+    if (!isHardLinkUnavailable(error)) throw error;
+  }
+  await fs.copyFile(source, target, fs.constants.COPYFILE_EXCL);
+}
+
+/**
  * Write the complete lock payload to a temp file (O_EXCL) and sync it.
  * Returns true on success, false for a retryable collision (EEXIST) or a
  * missing parent directory (ENOENT).  All other errors (ENOSPC, EACCES,
@@ -226,8 +293,13 @@ async function writeTempLockFile(
 }
 
 /**
- * Atomically link the temp file to the lock path (exclusive creation).
+ * Atomically publish the temp file to the lock path (exclusive creation).
  * Cleans up the temp file regardless of outcome.
+ *
+ * Publication goes through {@link linkOrCopyExclusive}: hard link where the
+ * filesystem allows it, exclusive copy where it denies links (Android/Termux
+ * EACCES).  Both preserve complete-payload publication and exclusivity; the
+ * fallback is never a clobbering rename.
  *
  * Returns `true` on success, `false` **only** for `EEXIST` (the lock
  * already exists).  Any other error (ENOSPC, EACCES, EROFS, EDQUOT, …) is
@@ -239,7 +311,7 @@ async function publishTempToLock(
   lockPath: string,
 ): Promise<boolean> {
   try {
-    await fs.link(tempPath, lockPath);
+    await linkOrCopyExclusive(tempPath, lockPath);
     return true;
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
@@ -250,7 +322,8 @@ async function publishTempToLock(
 }
 
 /**
- * Atomically publish a complete lock file using a temp file + hard link.
+ * Atomically publish a complete lock file using a temp file + hard link
+ * (exclusive copy where the filesystem denies links).
  *
  * The temp file is fully written and synced before linking, so the lock
  * path only ever contains a complete payload — never a partial write.
@@ -588,9 +661,11 @@ async function retireStaleLock(
   }
 
   if (capturedContent !== expectedContent) {
-    // Not the lock we judged — restore it instead of destroying it.
+    // Not the lock we judged — restore it instead of destroying it.  Restore
+    // is exclusive publication of the captured bytes (link, or exclusive copy
+    // where links are denied), so it can lose to a racer but never clobbers.
     try {
-      await fs.link(capturePath, lockPath);
+      await linkOrCopyExclusive(capturePath, lockPath);
     } catch (error: unknown) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
         // Restoration failed for some reason other than the path being taken,
@@ -773,7 +848,9 @@ function getGuardPath(lockPath: string): string {
 
 /**
  * Write the guard payload to a temp file (O_EXCL), sync it, then
- * exclusively hard-link the temp to the guard path.  The temp name reuses the
+ * exclusively publish the temp at the guard path via {@link
+ * linkOrCopyExclusive} (link, or exclusive copy where links are denied).  The
+ * temp name reuses the
  * existing `<safeSessionId>.lock.<uuid>.locktmp` grammar so the existing
  * `cleanupStaleLockTemp` orphan sweep already covers guard temps.
  *
@@ -818,7 +895,7 @@ async function installTransitionGuard(
     await fd.sync();
     await fd.close();
     fd = undefined;
-    await fs.link(tempPath, guardPath);
+    await linkOrCopyExclusive(tempPath, guardPath);
   } catch (error: unknown) {
     // EEXIST is contention: another process holds the guard, and recovery
     // should consult that claimant's liveness.  Anything else (ENOSPC, EACCES,
@@ -843,7 +920,8 @@ async function installTransitionGuard(
  * whose payload identifies this claim (pid, timestamp, claimToken, and the
  * dev/ino of the lock observed at claim time).
  *
- * - A guard is installed exclusively via temp-file + hard-link; EEXIST means
+ * - A guard is installed exclusively via temp-file + hard-link (exclusive copy
+ *   where links are denied); EEXIST means
  *   another process holds it, and recovery consults the incumbent claim's OWN
  *   liveness before touching it.
  * - A guard is installed even when the lock does not exist — strictly stronger
@@ -925,18 +1003,82 @@ async function tryReclaimGuard(
 }
 
 /**
+ * Snapshot the guard at `guardPath` into a fresh probe file and return the
+ * guard's dev/ino identity, or `null` when the guard is absent or cannot be
+ * inspected safely.
+ *
+ * A hard-link probe is preferred: the probe *is* another name for the guard
+ * inode, so its content cannot drift from its identity.  Filesystems that deny
+ * hard links (Android/Termux: EACCES) fall back to copying the guard's bytes
+ * and restoring its mtime, because `isRetirable` may fall back to an age bound
+ * and must judge the guard's age, not the probe copy's.
+ *
+ * The guard's identity is sampled before the snapshot and re-checked after it,
+ * so a guard replaced mid-snapshot is never judged by the wrong content — the
+ * probe would carry one guard's bytes while a later rename captured another.
+ * Any such instability answers "busy".
+ */
+async function snapshotGuardProbe(
+  lockPath: string,
+  guardPath: string,
+): Promise<{ probePath: string; guardIdentity: FileIdentity } | null> {
+  let guardIdentity: FileIdentity | null;
+  try {
+    guardIdentity = await statIdentity(guardPath);
+  } catch {
+    return null; // Cannot inspect the guard — treat as busy.
+  }
+  if (guardIdentity === null) return null;
+
+  const probePath = makeLockTempPath(lockPath);
+  try {
+    await fs.link(guardPath, probePath);
+  } catch (linkError: unknown) {
+    if (!isHardLinkUnavailable(linkError)) {
+      await safeUnlink(probePath);
+      return null; // No guard, or we cannot inspect one — treat as busy.
+    }
+    try {
+      const guardStat = await fs.stat(guardPath);
+      await fs.copyFile(guardPath, probePath, fs.constants.COPYFILE_EXCL);
+      await fs.utimes(probePath, guardStat.atime, guardStat.mtime);
+    } catch {
+      await safeUnlink(probePath);
+      return null;
+    }
+  }
+
+  try {
+    const current = await statIdentity(guardPath);
+    if (
+      current === null ||
+      current.dev !== guardIdentity.dev ||
+      current.ino !== guardIdentity.ino
+    ) {
+      await safeUnlink(probePath);
+      return null; // Guard swapped mid-snapshot — busy.
+    }
+  } catch {
+    await safeUnlink(probePath);
+    return null;
+  }
+  return { probePath, guardIdentity };
+}
+
+/**
  * Retire the guard at `guardPath`, but only when `isRetirable` says its own
  * payload shows the claimant has gone away.
  *
- * The decision is made against a **hard-link probe** rather than against
- * `guardPath` itself.  That is the point: a guard belonging to a live claimant
- * is never renamed, unlinked, or even momentarily absent from the well-known
- * path, so deciding "busy" costs a live claimant nothing.  Deciding against the
- * well-known path instead would mean a slow decision could be followed by
- * renaming away whichever guard had since replaced the one it inspected.
+ * The decision is made against a **probe snapshot** of the guard (see
+ * {@link snapshotGuardProbe}) rather than against `guardPath` itself.  That is
+ * the point: a guard belonging to a live claimant is never renamed, unlinked,
+ * or even momentarily absent from the well-known path, so deciding "busy"
+ * costs a live claimant nothing.  Deciding against the well-known path instead
+ * would mean a slow decision could be followed by renaming away whichever
+ * guard had since replaced the one it inspected.
  *
  * Only a guard that was proved retirable is retired, and retirement is an
- * atomic `rename` whose captured inode must equal the probed inode.  A
+ * atomic `rename` whose captured inode must equal the probed guard's inode.  A
  * different guard installed between the probe and the rename is restored
  * rather than discarded.  `rename` also means exactly one of several
  * concurrent reclaimers retires a given guard; the rest see ENOENT.
@@ -952,15 +1094,11 @@ async function retireGuardIf(
   guardPath: string,
   isRetirable: (probePath: string) => Promise<boolean>,
 ): Promise<boolean> {
-  const probePath = makeLockTempPath(lockPath);
-  let probeIdentity: FileIdentity | null;
-  try {
-    await fs.link(guardPath, probePath);
-    probeIdentity = await statIdentity(probePath);
-  } catch {
-    await safeUnlink(probePath);
+  const probe = await snapshotGuardProbe(lockPath, guardPath);
+  if (probe === null) {
     return false; // No guard, or we cannot inspect one — treat as busy.
   }
+  const { probePath, guardIdentity: probeIdentity } = probe;
 
   let retirable: boolean;
   try {
@@ -970,7 +1108,7 @@ async function retireGuardIf(
   } finally {
     await safeUnlink(probePath);
   }
-  if (!retirable || probeIdentity === null) return false;
+  if (!retirable) return false;
 
   const capturePath = makeLockTempPath(lockPath);
   try {
@@ -991,9 +1129,11 @@ async function retireGuardIf(
     capturedIdentity.ino !== probeIdentity.ino
   ) {
     // A different guard was installed between the probe and the rename — put
-    // it back rather than displacing a claimant we never inspected.
+    // it back rather than displacing a claimant we never inspected.  Restore
+    // is exclusive publication of the captured bytes (link, or exclusive copy
+    // where links are denied), so it can lose to a racer but never clobbers.
     try {
-      await fs.link(capturePath, guardPath);
+      await linkOrCopyExclusive(capturePath, guardPath);
     } catch (error: unknown) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
         // Restoration failed for some reason other than the path being taken,

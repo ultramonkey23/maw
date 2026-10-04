@@ -31,35 +31,27 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import {
   SessionLockManager,
   SessionLockedError,
 } from './SessionLockManager.js';
-
-const DEAD_PID = 999999999;
-
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'lock-safety-'));
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
+import {
+  DEAD_PID,
+  fileExists,
+  hardLinksAvailable,
+  makeTempDir,
+  writeGuard,
+  writeStaleLock,
+} from './__tests__/session-lock-test-helpers.js';
 
 describe('SessionLockManager — safe session ID grammar (Item 2)', () => {
   let tempDir: string;
   let chatsDir: string;
 
   beforeEach(async () => {
-    tempDir = await makeTempDir();
+    tempDir = await makeTempDir('lock-safety-');
     chatsDir = path.join(tempDir, 'chats');
     await fs.mkdir(chatsDir, { recursive: true });
   });
@@ -142,7 +134,7 @@ describe('SessionLockManager — owner tokens and atomic publication (Item 3)', 
   let chatsDir: string;
 
   beforeEach(async () => {
-    tempDir = await makeTempDir();
+    tempDir = await makeTempDir('lock-safety-');
     chatsDir = path.join(tempDir, 'chats');
     await fs.mkdir(chatsDir, { recursive: true });
   });
@@ -186,7 +178,7 @@ describe('SessionLockManager — unreadable/recent locks treated as busy (Item 3
   let chatsDir: string;
 
   beforeEach(async () => {
-    tempDir = await makeTempDir();
+    tempDir = await makeTempDir('lock-safety-');
     chatsDir = path.join(tempDir, 'chats');
     await fs.mkdir(chatsDir, { recursive: true });
   });
@@ -240,7 +232,7 @@ describe('SessionLockManager — owner-checked release (Item 3)', () => {
   let chatsDir: string;
 
   beforeEach(async () => {
-    tempDir = await makeTempDir();
+    tempDir = await makeTempDir('lock-safety-');
     chatsDir = path.join(tempDir, 'chats');
     await fs.mkdir(chatsDir, { recursive: true });
   });
@@ -292,7 +284,7 @@ describe('SessionLockManager — stale takeover does not remove replacement live
   let chatsDir: string;
 
   beforeEach(async () => {
-    tempDir = await makeTempDir();
+    tempDir = await makeTempDir('lock-safety-');
     chatsDir = path.join(tempDir, 'chats');
     await fs.mkdir(chatsDir, { recursive: true });
   });
@@ -500,7 +492,7 @@ interface AbandonedGuardRaceRound {
 }
 
 async function runAbandonedGuardRaceRound(): Promise<AbandonedGuardRaceRound> {
-  const tempDir = await makeTempDir();
+  const tempDir = await makeTempDir('lock-safety-');
   const chatsDir = path.join(tempDir, 'chats');
   const sessionId = 'abandoned-guard-race';
   const lockPath = SessionLockManager.getLockPath(chatsDir, sessionId);
@@ -572,7 +564,7 @@ describe('SessionLockManager — genuine transition race (subprocess, Item 3)', 
   let chatsDir: string;
 
   beforeEach(async () => {
-    tempDir = await makeTempDir();
+    tempDir = await makeTempDir('lock-safety-');
     chatsDir = path.join(tempDir, 'chats');
     await fs.mkdir(chatsDir, { recursive: true });
   });
@@ -790,7 +782,7 @@ describe('SessionLockManager — transition guard identity (Issue #3277)', () =>
   let chatsDir: string;
 
   beforeEach(async () => {
-    tempDir = await makeTempDir();
+    tempDir = await makeTempDir('lock-safety-');
     chatsDir = path.join(tempDir, 'chats');
     await fs.mkdir(chatsDir, { recursive: true });
   });
@@ -798,45 +790,6 @@ describe('SessionLockManager — transition guard identity (Issue #3277)', () =>
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
-
-  /**
-   * Write a genuinely stale lock (dead PID, 49h-old timestamp and mtime).
-   * Returns the on-disk ownerToken so a test can verify the lock was replaced.
-   */
-  async function writeStaleLock(
-    chatsDirN: string,
-    sessionId: string,
-  ): Promise<string> {
-    const lockPath = SessionLockManager.getLockPath(chatsDirN, sessionId);
-    const oldTime = new Date(Date.now() - 49 * 60 * 60 * 1000);
-    const ownerToken = 'stale-original-token';
-    await fs.writeFile(
-      lockPath,
-      JSON.stringify({
-        pid: DEAD_PID,
-        timestamp: oldTime.toISOString(),
-        sessionId,
-        ownerToken,
-      }),
-      'utf-8',
-    );
-    await fs.utimes(lockPath, oldTime, oldTime);
-    return ownerToken;
-  }
-
-  /**
-   * Write a transition guard file with the given payload.  Returns the exact
-   * bytes written so a test can assert the guard survived byte-identical.
-   */
-  async function writeGuard(
-    lockPath: string,
-    payload: Record<string, unknown>,
-  ): Promise<string> {
-    const guardPath = lockPath + '.tguard';
-    const content = JSON.stringify(payload);
-    await fs.writeFile(guardPath, content, 'utf-8');
-    return content;
-  }
 
   it('a guard held by a live claimant blocks stale takeover', async () => {
     const sessionId = 'live-claimant-guard';
@@ -953,29 +906,32 @@ describe('SessionLockManager — transition guard identity (Issue #3277)', () =>
     await handle.release();
   });
 
-  it('a legacy hard-link guard over a LIVE lock is not reclaimable', async () => {
-    const sessionId = 'legacy-hardlink-guard';
-    const lockPath = SessionLockManager.getLockPath(chatsDir, sessionId);
-    await fs.writeFile(
-      lockPath,
-      JSON.stringify({
-        pid: process.pid,
-        timestamp: new Date().toISOString(),
-        sessionId,
-        ownerToken: 'live-legacy-lock',
-      }),
-      'utf-8',
-    );
-    // Reproduce the old guard format: a hard link of the lock inode.
-    await fs.link(lockPath, lockPath + '.tguard');
+  it.skipIf(!hardLinksAvailable)(
+    'a legacy hard-link guard over a LIVE lock is not reclaimable',
+    async () => {
+      const sessionId = 'legacy-hardlink-guard';
+      const lockPath = SessionLockManager.getLockPath(chatsDir, sessionId);
+      await fs.writeFile(
+        lockPath,
+        JSON.stringify({
+          pid: process.pid,
+          timestamp: new Date().toISOString(),
+          sessionId,
+          ownerToken: 'live-legacy-lock',
+        }),
+        'utf-8',
+      );
+      // Reproduce the old guard format: a hard link of the lock inode.
+      await fs.link(lockPath, lockPath + '.tguard');
 
-    await expect(
-      SessionLockManager.acquire(chatsDir, sessionId),
-    ).rejects.toBeInstanceOf(SessionLockedError);
+      await expect(
+        SessionLockManager.acquire(chatsDir, sessionId),
+      ).rejects.toBeInstanceOf(SessionLockedError);
 
-    expect(await fileExists(lockPath)).toBe(true);
-    expect(await fileExists(lockPath + '.tguard')).toBe(true);
-  });
+      expect(await fileExists(lockPath)).toBe(true);
+      expect(await fileExists(lockPath + '.tguard')).toBe(true);
+    },
+  );
 
   /**
    * The proof scenario from issue #3277.
@@ -991,39 +947,42 @@ describe('SessionLockManager — transition guard identity (Issue #3277)', () =>
    * only thing that can keep the contender out is refusing to reclaim a guard
    * whose claimant cannot be identified.
    */
-  it('a hard-link guard over a stale lock is not reclaimable and blocks takeover', async () => {
-    const sessionId = 'hardlink-guard-stale-lock';
-    const lockPath = SessionLockManager.getLockPath(chatsDir, sessionId);
-    const guardPath = lockPath + '.tguard';
-    const originalToken = 'stale-original-token';
-    // Dead PID (stale) but a recent mtime, so age alone cannot reclaim.
-    await fs.writeFile(
-      lockPath,
-      JSON.stringify({
-        pid: DEAD_PID,
-        timestamp: new Date().toISOString(),
-        sessionId,
-        ownerToken: originalToken,
-      }),
-      'utf-8',
-    );
-    // A claimant mid-takeover under the pre-fix protocol: the guard is a hard
-    // link of the lock inode.
-    await fs.link(lockPath, guardPath);
-    const guardIno = (await fs.stat(guardPath)).ino;
+  it.skipIf(!hardLinksAvailable)(
+    'a hard-link guard over a stale lock is not reclaimable and blocks takeover',
+    async () => {
+      const sessionId = 'hardlink-guard-stale-lock';
+      const lockPath = SessionLockManager.getLockPath(chatsDir, sessionId);
+      const guardPath = lockPath + '.tguard';
+      const originalToken = 'stale-original-token';
+      // Dead PID (stale) but a recent mtime, so age alone cannot reclaim.
+      await fs.writeFile(
+        lockPath,
+        JSON.stringify({
+          pid: DEAD_PID,
+          timestamp: new Date().toISOString(),
+          sessionId,
+          ownerToken: originalToken,
+        }),
+        'utf-8',
+      );
+      // A claimant mid-takeover under the pre-fix protocol: the guard is a hard
+      // link of the lock inode.
+      await fs.link(lockPath, guardPath);
+      const guardIno = (await fs.stat(guardPath)).ino;
 
-    await expect(
-      SessionLockManager.acquire(chatsDir, sessionId),
-    ).rejects.toBeInstanceOf(SessionLockedError);
+      await expect(
+        SessionLockManager.acquire(chatsDir, sessionId),
+      ).rejects.toBeInstanceOf(SessionLockedError);
 
-    // The claimant's guard survives, still pointing at the same inode.
-    expect(await fileExists(guardPath)).toBe(true);
-    expect((await fs.stat(guardPath)).ino).toBe(guardIno);
-    // The lock the claimant is transitioning is untouched.
-    expect(JSON.parse(await fs.readFile(lockPath, 'utf-8')).ownerToken).toBe(
-      originalToken,
-    );
-  });
+      // The claimant's guard survives, still pointing at the same inode.
+      expect(await fileExists(guardPath)).toBe(true);
+      expect((await fs.stat(guardPath)).ino).toBe(guardIno);
+      // The lock the claimant is transitioning is untouched.
+      expect(JSON.parse(await fs.readFile(lockPath, 'utf-8')).ownerToken).toBe(
+        originalToken,
+      );
+    },
+  );
 
   it('removeStaleLock does not disturb a live claimant guard', async () => {
     const sessionId = 'removestale-live-guard';
