@@ -7,6 +7,7 @@
 import type { ThoughtSummary } from '@vybestack/llxprt-code-core';
 import type React from 'react';
 import { Box, Text } from 'ink';
+import type { SpinnerName } from 'cli-spinners';
 import { SemanticColors } from '../colors.js';
 import { getMawPalette } from './mawPalette.js';
 import { useStreamingContext } from '../contexts/StreamingContext.js';
@@ -24,6 +25,57 @@ function formatTimerText(elapsedTime: number): string {
     ? `${elapsedTime}s`
     : formatDuration(elapsedTime * 1000);
 }
+
+type ActivityClass = 'approval' | 'shell' | 'response';
+
+function classifyActivity(
+  streamingState: StreamingState,
+  isShellFocusHint: boolean,
+): ActivityClass {
+  if (streamingState === StreamingState.WaitingForConfirmation) {
+    return 'approval';
+  }
+  if (isShellFocusHint) {
+    return 'shell';
+  }
+  return 'response';
+}
+
+function resolvePrimaryText(
+  isShellFocusHint: boolean,
+  isActionRequired: boolean,
+  currentLoadingPhrase: string | undefined,
+  thoughtSubject: string | undefined,
+): string | undefined {
+  if (isShellFocusHint) {
+    return 'Interactive shell: press tab to focus shell';
+  }
+  if (isActionRequired) {
+    return currentLoadingPhrase;
+  }
+  return firstNonEmptyString(thoughtSubject, currentLoadingPhrase);
+}
+
+const ACTIVITY_LABELS: Record<ActivityClass, string> = {
+  approval: 'APPROVAL',
+  shell: 'SHELL',
+  response: 'RESPONSE',
+};
+
+const ACTIVITY_COLORS: Record<ActivityClass, string> = {
+  approval: SemanticColors.status.warning,
+  shell: SemanticColors.text.accent,
+  response: getMawPalette().ember,
+};
+
+// Each live state gets its own motion motif: soft breathing for reasoning,
+// a mechanical tick when the shell holds focus, an arrow when the user is
+// the one who must act.
+const SPINNER_MOTIFS: Record<ActivityClass, SpinnerName> = {
+  approval: 'arrow3',
+  shell: 'toggle',
+  response: 'dots',
+};
 
 interface LoadingIndicatorProps {
   currentLoadingPhrase?: string;
@@ -50,14 +102,16 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   const isActionRequired =
     streamingState === StreamingState.WaitingForConfirmation ||
     isShellFocusHint;
+  const activityClass = classifyActivity(streamingState, isShellFocusHint);
   // Prioritize the complete keyboard instruction over a decorative timer.
   // The full canonical hint is longer than the available width on narrower
   // terminals, so use a compact equivalent only for this exact shell state.
-  const primaryText = isShellFocusHint
-    ? 'Interactive shell: press tab to focus shell'
-    : isActionRequired
-      ? currentLoadingPhrase
-      : firstNonEmptyString(thought?.subject, currentLoadingPhrase);
+  const primaryText = resolvePrimaryText(
+    isShellFocusHint,
+    isActionRequired,
+    currentLoadingPhrase,
+    thought?.subject,
+  );
 
   const timerText = isActionRequired
     ? ''
@@ -68,18 +122,9 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
     : timerText.trimStart();
   // Describe the state we actually know. Waiting for permission and a focused
   // shell are distinct from a normal response stream.
-  const activityLabel =
-    streamingState === StreamingState.WaitingForConfirmation
-      ? 'APPROVAL'
-      : isShellFocusHint
-        ? 'SHELL'
-        : 'RESPONSE';
-  const labelColor =
-    streamingState === StreamingState.WaitingForConfirmation
-      ? SemanticColors.status.warning
-      : isShellFocusHint
-        ? SemanticColors.text.accent
-        : getMawPalette().ember;
+  const activityLabel = ACTIVITY_LABELS[activityClass];
+  const labelColor = ACTIVITY_COLORS[activityClass];
+  const spinnerMotif = SPINNER_MOTIFS[activityClass];
 
   return (
     <Box marginTop={1} paddingLeft={0} flexDirection="column">
@@ -87,6 +132,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       <Box width="100%" flexDirection="row">
         <Box marginRight={1}>
           <RespondingSpinner
+            spinnerType={spinnerMotif}
             nonRespondingDisplay={
               streamingState === StreamingState.WaitingForConfirmation
                 ? '⠏'

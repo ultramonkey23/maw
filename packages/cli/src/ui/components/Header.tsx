@@ -28,31 +28,44 @@ export const Header: React.FC<HeaderProps> = ({
   const isCustom = Boolean(customAsciiArt);
   const maw = getMawPalette();
   const isWide = terminalWidth >= getAsciiArtWidth(longAsciiLogo) + 2;
-  const displayTitle = customAsciiArt
-    ? customAsciiArt
-    : isWide
-      ? longAsciiLogo
-      : terminalWidth >= getAsciiArtWidth(shortAsciiLogo)
-        ? shortAsciiLogo
-        : 'MAW';
+  let displayTitle: string;
+  if (customAsciiArt) {
+    displayTitle = customAsciiArt;
+  } else if (isWide) {
+    displayTitle = longAsciiLogo;
+  } else if (terminalWidth >= getAsciiArtWidth(shortAsciiLogo)) {
+    displayTitle = shortAsciiLogo;
+  } else {
+    displayTitle = 'MAW';
+  }
   const artWidth = getAsciiArtWidth(displayTitle);
 
   return (
-    <Box alignItems="flex-start" width={artWidth} flexShrink={0} flexDirection="column">
+    <Box
+      alignItems="flex-start"
+      width={artWidth}
+      flexShrink={0}
+      flexDirection="column"
+    >
       {isCustom && Colors.GradientColors ? (
         <ThemedGradient colors={Colors.GradientColors}>
           <Text color={Colors.Foreground}>{displayTitle}</Text>
         </ThemedGradient>
       ) : (
-        <Text bold={!isCustom} color={isCustom ? SemanticColors.text.accent : maw.iron}>
+        <Text
+          bold={!isCustom}
+          color={isCustom ? SemanticColors.text.accent : maw.iron}
+        >
           {displayTitle}
         </Text>
       )}
       {!isCustom && terminalWidth >= getAsciiArtWidth(shortAsciiLogo) && (
         <Box paddingLeft={1} flexDirection="row">
-          <Text bold color={maw.ember}>LIVING CODE</Text>
+          <Text bold color={maw.ember}>
+            LIVING CODE
+          </Text>
           {isWide && (
-            <Text color={maw.bone}> // TRACE / FORGE / PROVE</Text>
+            <Text color={maw.bone}>{' // TRACE / FORGE / PROVE'}</Text>
           )}
         </Box>
       )}

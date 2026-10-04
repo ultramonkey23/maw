@@ -12,6 +12,24 @@ import { colorizeCode } from './CodeColorizer.js';
 import { TableRenderer } from './TableRenderer.js';
 import { RenderInline } from './InlineMarkdownRenderer.js';
 import { useSettings } from '../contexts/SettingsContext.js';
+import {
+  renderHeaderBlock,
+  renderHrBlock,
+  renderParagraphBlock,
+  renderQuoteBlock,
+} from './markdownBlocks.js';
+import type {
+  CodeBlockState,
+  IncrementalParseCache,
+  ParseSpan,
+  ProcessLinesResult,
+} from './markdownParseIncremental.js';
+import { parseMarkdownIncremental } from './markdownParseIncremental.js';
+import type {
+  LineMatchResult,
+  MarkdownRegexes,
+} from './markdownLineMatching.js';
+import { MARKDOWN_REGEXES, matchLine } from './markdownLineMatching.js';
 
 interface MarkdownDisplayProps {
   text: string;
@@ -39,6 +57,7 @@ const MarkdownDisplayInternal: React.FC<MarkdownDisplayProps> = ({
 }) => {
   const settings = useSettings();
   const responseColor = theme.text.response;
+  const incrementalCacheRef = React.useRef<IncrementalParseCache | null>(null);
 
   if (!text) return <></>;
 
@@ -60,121 +79,37 @@ const MarkdownDisplayInternal: React.FC<MarkdownDisplayProps> = ({
   }
 
   const lines = text.split(/\r?\n/);
-  const regexes = buildMarkdownRegexes();
-  const {
-    contentBlocks,
-    codeBlockState: finalCodeBlockState,
-    inTable: endedInTable,
-    tableHeaders: finalHeaders,
-    tableRows: finalRows,
-  } = processLines(
-    lines,
-    regexes,
-    isPending,
-    availableTerminalHeight,
+  const regexes = MARKDOWN_REGEXES;
+  const paramsKey = [
+    isPending ? 'pending' : 'complete',
+    availableTerminalHeight ?? 'auto',
     terminalWidth,
     responseColor,
-    workspaceDirectories,
+    JSON.stringify(workspaceDirectories ?? null),
+  ].join('\u0000');
+  const { contentBlocks } = parseMarkdownIncremental(
+    incrementalCacheRef,
+    lines,
+    paramsKey,
+    (startLine, lastLineEmptyBefore) =>
+      processLines(
+        lines,
+        regexes,
+        isPending,
+        availableTerminalHeight,
+        terminalWidth,
+        responseColor,
+        workspaceDirectories,
+        startLine,
+        lastLineEmptyBefore,
+      ),
   );
-
-  if (finalCodeBlockState.inCodeBlock) {
-    contentBlocks.push(
-      <RenderCodeBlock
-        key="line-eof"
-        content={finalCodeBlockState.codeBlockContent}
-        lang={finalCodeBlockState.codeBlockLang}
-        isPending={isPending}
-        availableTerminalHeight={availableTerminalHeight}
-        terminalWidth={terminalWidth}
-      />,
-    );
-  }
-
-  if (endedInTable && finalHeaders.length > 0 && finalRows.length > 0) {
-    contentBlocks.push(
-      <RenderTable
-        key={`table-${contentBlocks.length}`}
-        headers={finalHeaders}
-        rows={finalRows}
-        terminalWidth={terminalWidth}
-      />,
-    );
-  }
 
   return <>{contentBlocks}</>;
 };
-
-// Helper functions (adapted from static methods of MarkdownRenderer)
-
-interface MarkdownRegexes {
-  headerRegex: RegExp;
-  codeFenceRegex: RegExp;
-  ulItemRegex: RegExp;
-  olItemRegex: RegExp;
-  hrRegex: RegExp;
-  tableRowRegex: RegExp;
-  tableSeparatorRegex: RegExp;
-}
-
-// Markdown line patterns. Each is passed to RegExp via an identifier so it is
-// not a static literal flagged by sonarjs/regular-expr; the code-fence,
-// horizontal-rule, and table-separator patterns use bounded quantifiers to avoid
-// sonarjs/slow-regex while remaining behaviourally identical to the originals.
-const HEADER_PATTERN = '^ *(#{1,4}) +(.*)';
-const CODE_FENCE_PATTERN =
-  '^ {0,40}(`{3,100}|~{3,100}) {0,40}(\\w{0,100}?) {0,40}$';
-const UL_ITEM_PATTERN = '^([ \\t]*)([-*+]) +(.*)';
-const OL_ITEM_PATTERN = '^([ \\t]*)(\\d+)\\. +(.*)';
-const HR_PATTERN = '^ *([-*_] {0,40}){3,200} *$';
-const TABLE_ROW_PATTERN = '^\\s*\\|(.+)\\|\\s*$';
-const TABLE_SEPARATOR_PATTERN =
-  '^\\s{0,40}\\|?\\s{0,40}(:?-{1,200}:?)\\s{0,40}(\\|\\s{0,40}(:?-{1,200}:?)\\s{0,40}){1,200}\\|?\\s{0,40}$';
-
-function buildMarkdownRegexes(): MarkdownRegexes {
-  return {
-    headerRegex: new RegExp(HEADER_PATTERN),
-    codeFenceRegex: new RegExp(CODE_FENCE_PATTERN),
-    ulItemRegex: new RegExp(UL_ITEM_PATTERN),
-    olItemRegex: new RegExp(OL_ITEM_PATTERN),
-    hrRegex: new RegExp(HR_PATTERN),
-    tableRowRegex: new RegExp(TABLE_ROW_PATTERN),
-    tableSeparatorRegex: new RegExp(TABLE_SEPARATOR_PATTERN),
-  };
-}
-
-interface LineMatchResult {
-  codeFenceMatch: RegExpMatchArray | null;
-  headerMatch: RegExpMatchArray | null;
-  ulMatch: RegExpMatchArray | null;
-  olMatch: RegExpMatchArray | null;
-  hrMatch: RegExpMatchArray | null;
-  tableRowMatch: RegExpMatchArray | null;
-  tableSeparatorMatch: RegExpMatchArray | null;
-}
-
-function matchLine(line: string, regexes: MarkdownRegexes): LineMatchResult {
-  return {
-    codeFenceMatch: line.match(regexes.codeFenceRegex),
-    headerMatch: line.match(regexes.headerRegex),
-    ulMatch: line.match(regexes.ulItemRegex),
-    olMatch: line.match(regexes.olItemRegex),
-    hrMatch: line.match(regexes.hrRegex),
-    tableRowMatch: line.match(regexes.tableRowRegex),
-    tableSeparatorMatch: line.match(regexes.tableSeparatorRegex),
-  };
-}
-
-interface ProcessLinesResult {
-  contentBlocks: React.ReactNode[];
-  codeBlockState: CodeBlockState;
-  inTable: boolean;
-  tableHeaders: string[];
-  tableRows: string[][];
-}
-
 function handleCodeBlockLine(
   line: string,
-  key: string,
+  index: number,
   codeBlockFence: string,
   regexes: MarkdownRegexes,
   isPending: boolean,
@@ -182,7 +117,12 @@ function handleCodeBlockLine(
   terminalWidth: number,
   codeBlockContent: string[],
   codeBlockLang: string | null,
-  addContentBlock: (block: React.ReactNode) => void,
+  codeBlockStartIndex: number,
+  emitBlock: (
+    block: React.ReactNode,
+    startLine: number,
+    endLine: number,
+  ) => void,
 ): CodeBlockState {
   const fenceMatch = line.match(regexes.codeFenceRegex);
   if (
@@ -190,21 +130,24 @@ function handleCodeBlockLine(
     fenceMatch[1].startsWith(codeBlockFence[0]) &&
     fenceMatch[1].length >= codeBlockFence.length
   ) {
-    addContentBlock(
+    emitBlock(
       <RenderCodeBlock
-        key={key}
+        key={`line-${index}`}
         content={codeBlockContent}
         lang={codeBlockLang}
         isPending={isPending}
         availableTerminalHeight={availableTerminalHeight}
         terminalWidth={terminalWidth}
       />,
+      codeBlockStartIndex,
+      index,
     );
     return {
       inCodeBlock: false,
       codeBlockContent: [],
       codeBlockLang: null,
       codeBlockFence: '',
+      codeBlockStartIndex: -1,
     };
   }
   appendCodeBlockLine(
@@ -218,14 +161,8 @@ function handleCodeBlockLine(
     codeBlockContent,
     codeBlockLang,
     codeBlockFence,
+    codeBlockStartIndex,
   };
-}
-
-interface CodeBlockState {
-  inCodeBlock: boolean;
-  codeBlockContent: string[];
-  codeBlockLang: string | null;
-  codeBlockFence: string;
 }
 
 function processLineEntry(
@@ -242,13 +179,17 @@ function processLineEntry(
   tableRows: string[][],
   responseColor: string,
   workspaceDirectories: readonly string[] | undefined,
-  addContentBlock: (block: React.ReactNode) => void,
+  emitBlock: (
+    block: React.ReactNode,
+    startLine: number,
+    endLine: number,
+  ) => void,
   applyLineResult: (result: LineProcessResult, index: number) => void,
 ): CodeBlockState {
   if (codeBlockState.inCodeBlock) {
     return handleCodeBlockLine(
       line,
-      `line-${index}`,
+      index,
       codeBlockState.codeBlockFence,
       regexes,
       isPending,
@@ -256,7 +197,8 @@ function processLineEntry(
       terminalWidth,
       codeBlockState.codeBlockContent,
       codeBlockState.codeBlockLang,
-      addContentBlock,
+      codeBlockState.codeBlockStartIndex,
+      emitBlock,
     );
   }
 
@@ -268,6 +210,7 @@ function processLineEntry(
       inCodeBlock: true,
       codeBlockFence: matches.codeFenceMatch[1],
       codeBlockLang: matches.codeFenceMatch[2] || null,
+      codeBlockStartIndex: index,
     };
   }
 
@@ -282,12 +225,135 @@ function processLineEntry(
       tableHeaders,
       tableRows,
       regexes,
+      terminalWidth,
       responseColor,
       workspaceDirectories,
     ),
     index,
   );
   return codeBlockState;
+}
+
+interface SpanCollector {
+  spans: ParseSpan[];
+  lastLineEmptyAtStart: boolean[];
+  lastLineEmpty: boolean;
+}
+
+interface TableParseState {
+  inTable: boolean;
+  tableHeaders: string[];
+  tableRows: string[][];
+  tableStartIndex: number;
+}
+
+function emitSpanBlock(
+  collector: SpanCollector,
+  block: React.ReactNode,
+  spanStart: number,
+  spanEnd: number,
+): void {
+  collector.spans.push({
+    block,
+    startLine: spanStart,
+    endLine: spanEnd,
+    lastLineEmptyBefore: collector.lastLineEmptyAtStart[spanStart] ?? true,
+  });
+  collector.lastLineEmpty = false;
+}
+
+function applyLineResultToState(
+  result: LineProcessResult,
+  index: number,
+  collector: SpanCollector,
+  tableState: TableParseState,
+  terminalWidth: number,
+): void {
+  const { tableFlush, inTable, tableHeaders, tableRows, block, emptyLine } =
+    result;
+  if (
+    tableFlush &&
+    tableState.tableHeaders.length > 0 &&
+    tableState.tableRows.length > 0
+  ) {
+    emitSpanBlock(
+      collector,
+      <RenderTable
+        key={`table-${collector.spans.length}`}
+        headers={tableState.tableHeaders}
+        rows={tableState.tableRows}
+        terminalWidth={terminalWidth}
+      />,
+      tableState.tableStartIndex,
+      index - 1,
+    );
+    tableState.tableStartIndex = -1;
+  }
+  if (inTable && !tableState.inTable) {
+    tableState.tableStartIndex = index;
+  }
+  tableState.inTable = inTable;
+  tableState.tableHeaders = tableHeaders;
+  tableState.tableRows = tableRows;
+
+  if (block !== null) {
+    emitSpanBlock(collector, block, index, index);
+  } else if (emptyLine && !collector.lastLineEmpty) {
+    emitSpanBlock(
+      collector,
+      <Box key={`spacer-${index}`} height={EMPTY_LINE_HEIGHT} />,
+      index,
+      index,
+    );
+    collector.lastLineEmpty = true;
+  }
+}
+
+function hasActiveTable(tableState: TableParseState): boolean {
+  return (
+    tableState.inTable &&
+    tableState.tableHeaders.length > 0 &&
+    tableState.tableRows.length > 0
+  );
+}
+
+function flushTrailingBlocks(
+  collector: SpanCollector,
+  tableState: TableParseState,
+  codeBlockState: CodeBlockState,
+  isPending: boolean,
+  availableTerminalHeight: number | undefined,
+  terminalWidth: number,
+  lastIndex: number,
+): void {
+  if (codeBlockState.inCodeBlock) {
+    emitSpanBlock(
+      collector,
+      <RenderCodeBlock
+        key="line-eof"
+        content={codeBlockState.codeBlockContent}
+        lang={codeBlockState.codeBlockLang}
+        isPending={isPending}
+        availableTerminalHeight={availableTerminalHeight}
+        terminalWidth={terminalWidth}
+      />,
+      Math.max(codeBlockState.codeBlockStartIndex, 0),
+      lastIndex,
+    );
+  }
+  if (hasActiveTable(tableState)) {
+    emitSpanBlock(
+      collector,
+      <RenderTable
+        key={`table-${collector.spans.length}`}
+        headers={tableState.tableHeaders}
+        rows={tableState.tableRows}
+        terminalWidth={terminalWidth}
+      />,
+      tableState.tableStartIndex,
+      lastIndex,
+    );
+  }
 }
 
 function processLines(
@@ -298,53 +364,44 @@ function processLines(
   terminalWidth: number,
   responseColor: string,
   workspaceDirectories: readonly string[] | undefined,
+  startLine = 0,
+  lastLineEmptyBefore = true,
 ): ProcessLinesResult {
-  const contentBlocks: React.ReactNode[] = [];
-  const renderState = { lastLineEmpty: true };
-  let inTable = false;
-  let tableRows: string[][] = [];
-  let tableHeaders: string[] = [];
+  const collector: SpanCollector = {
+    spans: [],
+    lastLineEmptyAtStart: [],
+    lastLineEmpty: lastLineEmptyBefore,
+  };
+  const tableState: TableParseState = {
+    inTable: false,
+    tableHeaders: [],
+    tableRows: [],
+    tableStartIndex: -1,
+  };
 
-  function addContentBlock(block: React.ReactNode) {
-    contentBlocks.push(block);
-    renderState.lastLineEmpty = false;
-  }
-
-  function applyLineResult(result: LineProcessResult, index: number) {
-    if (result.tableFlush && tableHeaders.length > 0 && tableRows.length > 0) {
-      addContentBlock(
-        <RenderTable
-          key={`table-${contentBlocks.length}`}
-          headers={tableHeaders}
-          rows={tableRows}
-          terminalWidth={terminalWidth}
-        />,
-      );
-    }
-    inTable = result.inTable;
-    tableHeaders = result.tableHeaders;
-    tableRows = result.tableRows;
-
-    if (result.block !== null) {
-      addContentBlock(result.block);
-    } else if (result.emptyLine && !renderState.lastLineEmpty) {
-      contentBlocks.push(
-        <Box key={`spacer-${index}`} height={EMPTY_LINE_HEIGHT} />,
-      );
-      renderState.lastLineEmpty = true;
-    }
-  }
+  const emitBlock = (
+    block: React.ReactNode,
+    spanStart: number,
+    spanEnd: number,
+  ): void => {
+    emitSpanBlock(collector, block, spanStart, spanEnd);
+  };
+  const applyLineResult = (result: LineProcessResult, index: number): void => {
+    applyLineResultToState(result, index, collector, tableState, terminalWidth);
+  };
 
   let codeBlockState: CodeBlockState = {
     inCodeBlock: false,
     codeBlockContent: [],
     codeBlockLang: null,
     codeBlockFence: '',
+    codeBlockStartIndex: -1,
   };
 
-  for (const [index, line] of lines.entries()) {
+  for (let index = startLine; index < lines.length; index++) {
+    collector.lastLineEmptyAtStart[index] = collector.lastLineEmpty;
     codeBlockState = processLineEntry(
-      line,
+      lines[index],
       index,
       lines,
       regexes,
@@ -352,25 +409,35 @@ function processLines(
       availableTerminalHeight,
       terminalWidth,
       codeBlockState,
-      inTable,
-      tableHeaders,
-      tableRows,
+      tableState.inTable,
+      tableState.tableHeaders,
+      tableState.tableRows,
       responseColor,
       workspaceDirectories,
-      addContentBlock,
+      emitBlock,
       applyLineResult,
     );
   }
 
-  return {
-    contentBlocks,
+  flushTrailingBlocks(
+    collector,
+    tableState,
     codeBlockState,
-    inTable,
-    tableHeaders,
-    tableRows,
+    isPending,
+    availableTerminalHeight,
+    terminalWidth,
+    lines.length - 1,
+  );
+
+  return {
+    contentBlocks: collector.spans.map((span) => span.block),
+    spans: collector.spans,
+    codeBlockState,
+    inTable: tableState.inTable,
+    tableHeaders: tableState.tableHeaders,
+    tableRows: tableState.tableRows,
   };
 }
-
 interface LineProcessResult {
   block: React.ReactNode | null;
   emptyLine: boolean;
@@ -378,53 +445,6 @@ interface LineProcessResult {
   tableHeaders: string[];
   tableRows: string[][];
   tableFlush: boolean;
-}
-
-function renderHeaderNode(
-  headerMatch: RegExpMatchArray,
-  responseColor: string,
-  workspaceDirectories: readonly string[] | undefined,
-): React.ReactNode {
-  const level = headerMatch[1].length;
-  const headerText = headerMatch[2];
-  switch (level) {
-    case 1:
-    case 2:
-      return (
-        <RenderInline
-          text={headerText}
-          defaultColor={theme.text.link}
-          bold
-          workspaceDirectories={workspaceDirectories}
-        />
-      );
-    case 3:
-      return (
-        <RenderInline
-          text={headerText}
-          defaultColor={responseColor}
-          bold
-          workspaceDirectories={workspaceDirectories}
-        />
-      );
-    case 4:
-      return (
-        <RenderInline
-          text={headerText}
-          defaultColor={theme.text.secondary}
-          italic
-          workspaceDirectories={workspaceDirectories}
-        />
-      );
-    default:
-      return (
-        <RenderInline
-          text={headerText}
-          defaultColor={responseColor}
-          workspaceDirectories={workspaceDirectories}
-        />
-      );
-  }
 }
 
 function processTableLine(
@@ -522,49 +542,11 @@ function renderListItemBlock(
   );
 }
 
-function renderHrBlock(key: string): React.ReactNode {
-  return (
-    <Box key={key}>
-      <Text color={theme.ui.comment}>---</Text>
-    </Box>
-  );
-}
-
-function renderHeaderBlock(
-  key: string,
-  headerMatch: RegExpMatchArray,
-  responseColor: string,
-  workspaceDirectories: readonly string[] | undefined,
-): React.ReactNode {
-  return (
-    <Box key={key}>
-      {renderHeaderNode(headerMatch, responseColor, workspaceDirectories)}
-    </Box>
-  );
-}
-
-function renderParagraphBlock(
-  key: string,
-  line: string,
-  responseColor: string,
-  workspaceDirectories: readonly string[] | undefined,
-): React.ReactNode {
-  return (
-    <Box key={key}>
-      <RenderInline
-        text={line}
-        defaultColor={responseColor}
-        wrap="wrap"
-        workspaceDirectories={workspaceDirectories}
-      />
-    </Box>
-  );
-}
-
 function processNonTableLine(
   line: string,
   key: string,
   matches: LineMatchResult,
+  terminalWidth: number,
   responseColor: string,
   workspaceDirectories: readonly string[] | undefined,
 ): LineProcessResult {
@@ -578,7 +560,7 @@ function processNonTableLine(
   };
 
   if (matches.hrMatch) {
-    return { ...empty, block: renderHrBlock(key) };
+    return { ...empty, block: renderHrBlock(key, terminalWidth) };
   }
 
   if (matches.headerMatch) {
@@ -590,6 +572,13 @@ function processNonTableLine(
         responseColor,
         workspaceDirectories,
       ),
+    };
+  }
+
+  if (matches.quoteMatch) {
+    return {
+      ...empty,
+      block: renderQuoteBlock(key, matches.quoteMatch[1], workspaceDirectories),
     };
   }
 
@@ -641,6 +630,7 @@ function processLine(
   currentTableHeaders: string[],
   currentTableRows: string[][],
   regexes: MarkdownRegexes,
+  terminalWidth: number,
   responseColor: string,
   workspaceDirectories: readonly string[] | undefined,
 ): LineProcessResult {
@@ -696,6 +686,7 @@ function processLine(
     line,
     key,
     matches,
+    terminalWidth,
     responseColor,
     workspaceDirectories,
   );

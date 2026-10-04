@@ -8,6 +8,10 @@ export const SCREEN_READER_USER_PREFIX = 'User: ';
 
 export const SCREEN_READER_MODEL_PREFIX = 'Model: ';
 
+// Bone-colored spine marking agent output; continuation chunks reuse it so a
+// long response reads as one continuous organism.
+export const RESPONSE_RAIL = '| ';
+
 export const SCREEN_READER_LOADING = 'loading';
 
 export const SCREEN_READER_RESPONDING = 'responding';

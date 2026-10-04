@@ -5,8 +5,10 @@
  */
 
 import type React from 'react';
-import { Box } from 'ink';
+import { Box, Text } from 'ink';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
+import { getMawPalette } from '../mawPalette.js';
+import { RESPONSE_RAIL } from '../../textConstants.js';
 import { useTerminalStore } from '../../stores/terminal/TerminalContext.js';
 import { useStoreSelector } from '../../stores/useStoreSelector.js';
 import { useResolvedWorkspaceDirectories } from '../../hooks/useResolvedWorkspaceDirectories.js';
@@ -37,19 +39,24 @@ export const AiMessageContent: React.FC<AiMessageContentProps> = ({
   const resolvedWorkspaceDirectories =
     useResolvedWorkspaceDirectories(workspaceDirectories);
 
-  const originalPrefix = '✦ ';
-  const prefixWidth = originalPrefix.length;
+  const prefix = RESPONSE_RAIL;
+  const prefixWidth = prefix.length;
 
   return (
-    <Box flexDirection="column" paddingLeft={prefixWidth}>
-      <MarkdownDisplay
-        text={text}
-        isPending={isPending}
-        availableTerminalHeight={availableTerminalHeight}
-        terminalWidth={terminalWidth}
-        renderMarkdown={renderMarkdown}
-        workspaceDirectories={resolvedWorkspaceDirectories}
-      />
+    <Box flexDirection="row">
+      <Box width={prefixWidth}>
+        <Text color={getMawPalette().bone}>{prefix}</Text>
+      </Box>
+      <Box flexGrow={1} flexDirection="column">
+        <MarkdownDisplay
+          text={text}
+          isPending={isPending}
+          availableTerminalHeight={availableTerminalHeight}
+          terminalWidth={terminalWidth}
+          renderMarkdown={renderMarkdown}
+          workspaceDirectories={resolvedWorkspaceDirectories}
+        />
+      </Box>
     </Box>
   );
 };

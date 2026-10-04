@@ -9,7 +9,10 @@ import { Text, Box } from 'ink';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { Colors } from '../../colors.js';
 import { getMawPalette } from '../mawPalette.js';
-import { SCREEN_READER_MODEL_PREFIX } from '../../textConstants.js';
+import {
+  RESPONSE_RAIL,
+  SCREEN_READER_MODEL_PREFIX,
+} from '../../textConstants.js';
 import { ThinkingBlockDisplay } from './ThinkingBlockDisplay.js';
 import type { ThinkingBlock } from '@vybestack/llxprt-code-core';
 import { useRuntimeApi } from '../../contexts/RuntimeContext.js';
@@ -62,7 +65,7 @@ export const AiMessage: React.FC<AiMessageProps> = ({
     useResolvedWorkspaceDirectories(workspaceDirectories);
 
   // A quiet, persistent visual rail separates agent output from boxed user input.
-  const prefix = '| ';
+  const prefix = RESPONSE_RAIL;
   const prefixWidth = prefix.length;
 
   // #1723: Show thinking blocks in BOTH pending and committed items so thinking
@@ -73,16 +76,15 @@ export const AiMessage: React.FC<AiMessageProps> = ({
     thinkingBlocks,
   );
 
+  const identityLine = [profileName ? `[${profileName}]` : '', model ?? '']
+    .filter((part) => part.length > 0)
+    .join(' · ');
+
   return (
     <Box flexDirection="column">
-      {profileName && (
+      {identityLine.length > 0 && (
         <Box marginBottom={0}>
-          <Text color={Colors.DimComment}>[{profileName}]</Text>
-        </Box>
-      )}
-      {model && (
-        <Box marginBottom={0}>
-          <Text color={Colors.DimComment}>{model}</Text>
+          <Text color={Colors.DimComment}>{identityLine}</Text>
         </Box>
       )}
       {visibleThinkingBlocks?.map((block, index) => (

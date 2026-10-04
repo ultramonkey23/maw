@@ -21,6 +21,7 @@ import {
 } from '@vybestack/llxprt-code-core';
 import { canonicalizeToolName } from '@vybestack/llxprt-code-tools';
 import { SHELL_COMMAND_NAME, SHELL_NAME } from '../../constants.js';
+import { buildToolStatusTally } from '../../utils/toolStatusTally.js';
 import { useTodoContext } from '../../contexts/TodoContext.js';
 import type { CliUiRuntime } from '../../cliUiRuntime.js';
 import { getBorderStyle } from '../../contexts/UnicodeRenderingContext.js';
@@ -171,8 +172,7 @@ export function deriveBorderColors(
   const needsApproval = statuses.includes(ToolCallStatus.Confirming);
   const isRunning = statuses.some(
     (status) =>
-      status === ToolCallStatus.Executing ||
-      status === ToolCallStatus.Pending,
+      status === ToolCallStatus.Executing || status === ToolCallStatus.Pending,
   );
   const hasCanceled = statuses.includes(ToolCallStatus.Canceled);
   // Tool results may carry either the user-facing label or the canonical
@@ -184,23 +184,37 @@ export function deriveBorderColors(
       canonicalizeToolName(tool.name) === 'run_shell_command',
   );
 
-  const borderColor = hasError
-    ? theme.status.error
-    : needsApproval
-      ? theme.status.warning
-      : isRunning
-        ? theme.border.focused
-        : hasCanceled
-          ? theme.text.secondary
-          : isShellCommand
-            ? theme.ui.symbol
-            : theme.border.default;
+  let borderColor = theme.border.default;
+  if (hasError) {
+    borderColor = theme.status.error;
+  } else if (needsApproval) {
+    borderColor = theme.status.warning;
+  } else if (isRunning) {
+    borderColor = theme.border.focused;
+  } else if (hasCanceled) {
+    borderColor = theme.text.secondary;
+  } else if (isShellCommand) {
+    borderColor = theme.ui.symbol;
+  }
 
   return {
     borderColor,
     borderDimColor: isRunning && !needsApproval && !hasError && !isShellCommand,
     isShellCommand,
   };
+}
+
+export function deriveTallyColor(statuses: readonly ToolCallStatus[]): string {
+  if (statuses.includes(ToolCallStatus.Error)) {
+    return theme.status.error;
+  }
+  if (
+    statuses.includes(ToolCallStatus.Confirming) ||
+    statuses.includes(ToolCallStatus.Canceled)
+  ) {
+    return theme.status.warning;
+  }
+  return theme.text.secondary;
 }
 
 function renderToolCallItem(
@@ -291,6 +305,24 @@ function useToolGroupState(
   return { toolAwaitingApproval, filteredToolCalls };
 }
 
+function renderIdentityRow(
+  hasAgentLabel: boolean,
+  agentId: string | undefined,
+  tally: string,
+  tallyColor: string,
+): React.ReactNode {
+  return (
+    <Box marginLeft={1} flexDirection="row">
+      {hasAgentLabel && (
+        <Text color={Colors.AccentCyan}>{`Agent: ${agentId}${
+          tally !== '' ? ' ' : ''
+        }`}</Text>
+      )}
+      {tally !== '' && <Text color={tallyColor}>{tally}</Text>}
+    </Box>
+  );
+}
+
 // Main component renders the border and maps the tools using ToolMessage
 export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   toolCalls,
@@ -332,6 +364,14 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
     filteredToolCalls,
   );
 
+  const tally = buildToolStatusTally(
+    filteredToolCalls.map((tool) => tool.status),
+  );
+  const tallyColor = deriveTallyColor(
+    filteredToolCalls.map((tool) => tool.status),
+  );
+  const hasAgentLabel = agentId !== undefined && agentId !== DEFAULT_AGENT_ID;
+
   return (
     <Box
       flexDirection="column"
@@ -342,11 +382,8 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
       borderColor={borderColor}
       gap={1}
     >
-      {agentId && agentId !== DEFAULT_AGENT_ID && (
-        <Box marginLeft={1}>
-          <Text color={Colors.AccentCyan}>{`Agent: ${agentId}`}</Text>
-        </Box>
-      )}
+      {(hasAgentLabel || tally !== '') &&
+        renderIdentityRow(hasAgentLabel, agentId, tally, tallyColor)}
       {filteredToolCalls.map((tool, index) =>
         renderToolCallItem(
           tool,
