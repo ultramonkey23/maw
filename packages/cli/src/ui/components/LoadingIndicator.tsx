@@ -7,7 +7,8 @@
 import type { ThoughtSummary } from '@vybestack/llxprt-code-core';
 import type React from 'react';
 import { Box, Text } from 'ink';
-import { Colors } from '../colors.js';
+import { SemanticColors } from '../colors.js';
+import { getMawPalette } from './mawPalette.js';
 import { useStreamingContext } from '../contexts/StreamingContext.js';
 import { StreamingState } from '../types.js';
 import { RespondingSpinner } from './RespondingSpinner.js';
@@ -61,6 +62,20 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   const lineText = primaryText
     ? `${primaryText}${timerText}`
     : timerText.trimStart();
+  // Describe the state we actually know. Waiting for permission and a focused
+  // shell are distinct from a normal response stream.
+  const activityLabel =
+    streamingState === StreamingState.WaitingForConfirmation
+      ? 'APPROVAL'
+      : isShellFocusHint
+        ? 'SHELL'
+        : 'RESPONSE';
+  const labelColor =
+    streamingState === StreamingState.WaitingForConfirmation
+      ? SemanticColors.status.warning
+      : isShellFocusHint
+        ? SemanticColors.text.accent
+        : getMawPalette().ember;
 
   return (
     <Box marginTop={1} paddingLeft={0} flexDirection="column">
@@ -75,10 +90,13 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
             }
           />
         </Box>
-        <Box flexGrow={1} flexShrink={1} minWidth={0}>
+        <Box flexGrow={1} flexShrink={1} minWidth={0} flexDirection="row">
+          <Text bold color={labelColor}>
+            {activityLabel}{' '}
+          </Text>
           {lineText && (
             <Text
-              color={Colors.AccentPurple}
+              color={SemanticColors.text.primary}
               wrap={timerText ? 'truncate-middle' : 'truncate-end'}
             >
               {lineText}
