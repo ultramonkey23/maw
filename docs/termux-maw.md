@@ -27,7 +27,8 @@ only for code generation.
 
 The root package pins Bun 1.3.14 and includes Android ARM64
 `@oven/bun-linux-aarch64-android` as an optional dependency. The local launcher
-prefers that Bionic build, then a **working** npm-managed Bun binary, then an
+prefers the separately bootstrapped Android Bionic binary, then the Android ABI
+build installed by npm, then a **working** npm-managed Bun binary, then an
 already working Bun on `PATH`. It rejects non-running candidates, an
 unsupported architecture, and versions below 1.3.14.
 
@@ -43,16 +44,49 @@ git clone https://github.com/ultramonkey23/maw.git "$HOME/repos/maw"
 If you already have an MAW checkout there, inspect its local changes before
 pulling or overwriting anything. Never clone over an existing directory.
 
-In Termux:
+If `$HOME/repos/maw` **already exists**, check its origin, branch, and
+working tree before updating it:
 
 ```sh
 cd "$HOME/repos/maw"
-npm install --no-audit --no-fund
+git remote -v
+git branch --show-current
+git status --short
+```
+
+If the checkout is on `main`, follows `ultramonkey23/maw`, and has no
+local changes that would conflict, fast-forward without overwriting work:
+
+```sh
+git pull --ff-only origin main
+```
+
+The Android-specific source launcher must exist after checkout/update:
+`test -f scripts/maw-termux.sh`. If it does not, stop and inspect the
+checkout rather than cloning another copy.
+
+**Bootstrap first:** MAW has Bun-dependent workspace install hooks, while
+Termux may have no working Bun installed. The dedicated bootstrap downloads
+the official pinned `@oven/bun-linux-aarch64-android@1.3.14` archive with
+`npm pack`, checks the actual executable on the device, and installs it only
+under `$HOME/.local/share/maw/bun-1.3.14`. It does not replace `ultralab`,
+the Termux-wide `node`, or any globally installed Bun.
+
+```sh
+cd "$HOME/repos/maw"
+sh scripts/bootstrap-termux-bun.sh
 sh scripts/maw-termux.sh --doctor
+npm install --no-audit --no-fund
 sh scripts/maw-termux.sh --prepare
 ```
 
-Stop if npm fails, `--doctor` fails, or generation fails. Do **not** compensate
+The IDE companion's checked-in `NOTICES.txt` is retained on Termux rather
+than asking its optional VS Code packaging step to execute Bun while npm is
+still installing dependencies. On other systems, the existing notice
+generation is unchanged. The `--prepare` mode invokes the two TypeScript
+generation scripts directly (avoiding known Termux `bun run` cwd problems).
+
+Stop if bootstrap, npm, `--doctor`, or generation fails. Do **not** compensate
 by globally reinstalling LLxprt, replacing `ultralab`, modifying Termux's
 Node installation, or copying binaries from a generic Linux ARM64 build.
 Some native dependencies may still require Android-specific fixes.
@@ -94,7 +128,7 @@ check the effective provider, model and credential scope before changing them.
 ## Diagnostic/rollback
 
 ```sh
-"$HOME/repos/maw/scripts/maw-termux.sh" --doctor
+sh "$HOME/repos/maw/scripts/maw-termux.sh" --doctor
 ```
 
 The launcher validates the source path, Termux/ARM64, Node and Bun runtime
