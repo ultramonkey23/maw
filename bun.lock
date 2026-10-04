@@ -1,5 +1,5 @@
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 3,
   "configVersion": 0,
   "workspaces": {
     "": {
@@ -664,35 +664,68 @@
     "@grpc/grpc-js": ">=1.13.5 <2",
     "@protobufjs/utf8": ">=1.1.1",
     "@tootallnate/once": "3.0.1",
-    "brace-expansion@>=1.0.0 <2": "1.1.18",
-    "brace-expansion@>=2.0.0 <3": "2.1.4",
-    "brace-expansion@>=5.0.0 <6": "5.0.9",
+    "brace-expansion@>=1.0.0 <2": {
+      ".": "1.1.18",
+    },
+    "brace-expansion@>=2.0.0 <3": {
+      ".": "2.1.4",
+    },
+    "brace-expansion@>=5.0.0 <6": {
+      ".": "5.0.9",
+    },
     "fast-xml-builder": ">=1.1.7",
     "fast-xml-parser": ">=5.10.1 <6",
     "flatted": ">=3.4.2",
-    "form-data@>=2.0.0 <3": "2.5.6",
-    "form-data@>=4.0.0 <5": "4.0.6",
+    "form-data@>=2.0.0 <3": {
+      ".": "2.5.6",
+    },
+    "form-data@>=4.0.0 <5": {
+      ".": "4.0.6",
+    },
     "hono": ">=4.12.34 <5",
     "ip-address": ">=10.3.1 <11",
-    "js-yaml@>=3.0.0 <4": "3.15.1",
-    "js-yaml@>=4.0.0 <5": "4.3.1",
+    "js-yaml@>=3.0.0 <4": {
+      ".": "3.15.1",
+    },
+    "js-yaml@>=4.0.0 <5": {
+      ".": "4.3.1",
+    },
+    "jsonwebtoken": {
+      "jws": "^3.2.3",
+    },
     "jws": "^4.0.1",
-    "linkify-it@>=5.0.0 <6": "5.0.2",
+    "linkify-it@>=5.0.0 <6": {
+      ".": "5.0.2",
+    },
     "markdown-it": ">=14.2.0 <15",
-    "nanoid@>=3.0.0 <4": "3.3.18",
-    "path-to-regexp@<1": "0.1.13",
-    "path-to-regexp@>=8.0.0 <9": "8.4.0",
-    "picomatch@>=2.0.0 <3": "2.3.2",
-    "picomatch@>=4.0.0 <5": "4.0.4",
+    "nanoid@>=3.0.0 <4": {
+      ".": "3.3.18",
+    },
+    "path-to-regexp@<1": {
+      ".": "0.1.13",
+    },
+    "path-to-regexp@>=8.0.0 <9": {
+      ".": "8.4.0",
+    },
+    "picomatch@>=2.0.0 <3": {
+      ".": "2.3.2",
+    },
+    "picomatch@>=4.0.0 <5": {
+      ".": "4.0.4",
+    },
     "postcss": ">=8.5.23 <9",
     "protobufjs": ">=7.6.3 <8",
     "qs": "^6.15.2",
     "shell-quote": "1.10.0",
     "tmp": ">=0.2.6",
     "typescript": "5.8.3",
-    "uuid@>=9.0.0 <12": "11.1.1",
+    "uuid@>=9.0.0 <12": {
+      ".": "11.1.1",
+    },
     "vite": ">=7.3.5 <8",
-    "ws@>=8.0.0 <9": "8.21.0",
+    "ws@>=8.0.0 <9": {
+      ".": "8.21.0",
+    },
   },
   "packages": {
     "@a2a-js/sdk": ["@a2a-js/sdk@0.3.13", "", { "dependencies": { "uuid": "^11.1.0" }, "peerDependencies": { "@bufbuild/protobuf": "^2.10.2", "@grpc/grpc-js": "^1.11.0", "express": "^4.21.2 || ^5.1.0" }, "optionalPeers": ["@bufbuild/protobuf", "@grpc/grpc-js"] }, "sha512-BZr0f9JVNQs3GKOM9xINWCh6OKIJWZFPyqqVqTym5mxO2Eemc6I/0zL7zWnljHzGdaf5aZQyQN5xa6PSH62q+A=="],
@@ -2801,11 +2834,17 @@
 
     "@vue/compiler-core/entities": ["entities@7.0.1", "", {}, "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="],
 
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents": ["@vybestack/llxprt-code-agents@file:packages/agents", { "dependencies": { "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-core": "file:../core", "@vybestack/llxprt-code-ide-integration": "file:../ide-integration", "@vybestack/llxprt-code-mcp": "file:../mcp", "@vybestack/llxprt-code-policy": "file:../policy", "@vybestack/llxprt-code-providers": "file:../providers", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-tools": "file:../tools", "diff": "^8.0.3", "fast-levenshtein": "^2.0.6", "undici": "^7.29.0", "zod": "^3.25.76", "zod-to-json-schema": "^3.25.1" }, "devDependencies": { "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
+
     "@vybestack/llxprt-code/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", { "dependencies": { "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core": ["@vybestack/llxprt-code-core@file:packages/core", { "dependencies": { "@dqbd/tiktoken": "1.0.22", "@iarna/toml": "^2.2.5", "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-ide-integration": "file:../ide-integration", "@vybestack/llxprt-code-mcp": "file:../mcp", "@vybestack/llxprt-code-policy": "file:../policy", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "@xterm/headless": "5.5.0", "ajv": "^8.17.1", "chardet": "^2.1.0", "fast-levenshtein": "^2.0.6", "fdir": "^6.4.6", "fzf": "^0.5.2", "glob": "^12.0.0", "ignore": "^7.0.0", "js-yaml": "^4.2.0", "marked": "^15.0.12", "mime-types": "^3.0.1", "mnemonist": "^0.40.3", "picomatch": "^4.0.4", "read-package-up": "^11.0.0", "shell-quote": "^1.10.0", "simple-git": "^3.36.0", "strip-ansi": "^7.1.0", "tree-sitter-bash": "^0.25.0", "tree-sitter-pwsh": "^0.38.1", "undici": "^7.29.0", "web-tree-sitter": "^0.25.10", "zod": "^3.25.76" }, "devDependencies": { "@types/fast-levenshtein": "^0.0.4", "@types/js-yaml": "^4.0.9", "@types/node": "^24.2.1", "@types/picomatch": "^4.0.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "fast-check": "^4.2.0", "msw": "^2.3.4", "typescript": "^5.3.3" }, "optionalDependencies": { "@lydell/node-pty": "1.1.0", "@lydell/node-pty-darwin-arm64": "1.1.0", "@lydell/node-pty-darwin-x64": "1.1.0", "@lydell/node-pty-linux-x64": "1.1.0", "@lydell/node-pty-win32-arm64": "1.1.0", "@lydell/node-pty-win32-x64": "1.1.0", "node-pty": "^1.0.0" } }],
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-ide-integration": ["@vybestack/llxprt-code-ide-integration@file:packages/ide-integration", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "undici": "^7.29.0", "vscode-jsonrpc": "^8.2.1", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "shell-quote": "^1.10.0", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers": ["@vybestack/llxprt-code-providers@file:packages/providers", { "dependencies": { "@ai-sdk/openai": "^4.0.50", "@anthropic-ai/sdk": "^0.55.1", "@dqbd/tiktoken": "1.0.22", "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-core": "file:../core", "@vybestack/llxprt-code-mcp": "file:../mcp", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "ai": "^7.0.83", "comment-json": "^4.5.0", "openai": "^5.10.1", "strip-json-comments": "^3.1.1", "undici": "^7.29.0", "zod": "^3.25.76" }, "devDependencies": { "@ai-sdk/provider-utils": "^5.0.32", "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "fast-check": "^4.3.0", "typescript": "^5.3.3" } }],
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", { "dependencies": { "@vybestack/llxprt-code-storage": "file:../storage", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
 
@@ -2817,81 +2856,7 @@
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", { "dependencies": { "@ast-grep/lang-c": "^0.0.5", "@ast-grep/lang-cpp": "^0.0.5", "@ast-grep/lang-go": "^0.0.5", "@ast-grep/lang-java": "^0.0.6", "@ast-grep/lang-json": "^0.0.6", "@ast-grep/lang-python": "^0.0.5", "@ast-grep/lang-ruby": "^0.0.6", "@ast-grep/lang-rust": "^0.0.6", "@ast-grep/napi": "^0.40.5", "@lvce-editor/ripgrep": "^5.1.0", "ajv": "^8.17.1", "diff": "^8.0.3", "fast-glob": "^3.3.3", "glob": "^12.0.0", "html-to-text": "^9.0.5", "mime-types": "^3.0.1", "sharp": "^0.35.3", "shell-quote": "^1.10.0", "turndown": "^7.2.2", "zod": "^3.25.76", "zod-to-json-schema": "^3.25.1" }, "devDependencies": { "@types/html-to-text": "^9.0.4", "@types/mime-types": "^3.0.1", "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "typescript": "^5.3.3" } }],
 
-    "@vybestack/llxprt-code-a2a-server/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "shell-quote": "^1.10.0", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-a2a-server/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", { "dependencies": { "env-paths": "^4.0.0", "ignore": "^7.0.0" }, "devDependencies": { "@types/node": "^24.2.1", "cross-env": "^7.0.3", "typescript": "^5.3.3" }, "optionalDependencies": { "@napi-rs/keyring": "^1.2.0" } }],
-
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", { "dependencies": { "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-ide-integration": ["@vybestack/llxprt-code-ide-integration@file:packages/ide-integration", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "undici": "^7.29.0", "vscode-jsonrpc": "^8.2.1", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "shell-quote": "^1.10.0", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-policy": ["@vybestack/llxprt-code-policy@file:packages/policy", { "dependencies": { "@iarna/toml": "^2.2.5", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", { "dependencies": { "@vybestack/llxprt-code-storage": "file:../storage", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", { "devDependencies": { "@lydell/node-pty": "1.1.0", "strip-ansi": "^7.1.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", { "dependencies": { "@ast-grep/lang-c": "^0.0.5", "@ast-grep/lang-cpp": "^0.0.5", "@ast-grep/lang-go": "^0.0.5", "@ast-grep/lang-java": "^0.0.6", "@ast-grep/lang-json": "^0.0.6", "@ast-grep/lang-python": "^0.0.5", "@ast-grep/lang-ruby": "^0.0.6", "@ast-grep/lang-rust": "^0.0.6", "@ast-grep/napi": "^0.40.5", "@lvce-editor/ripgrep": "^5.1.0", "ajv": "^8.17.1", "diff": "^8.0.3", "fast-glob": "^3.3.3", "glob": "^12.0.0", "html-to-text": "^9.0.5", "mime-types": "^3.0.1", "sharp": "^0.35.3", "shell-quote": "^1.10.0", "turndown": "^7.2.2", "zod": "^3.25.76", "zod-to-json-schema": "^3.25.1" }, "devDependencies": { "@types/html-to-text": "^9.0.4", "@types/mime-types": "^3.0.1", "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", { "dependencies": { "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-ide-integration": ["@vybestack/llxprt-code-ide-integration@file:packages/ide-integration", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "undici": "^7.29.0", "vscode-jsonrpc": "^8.2.1", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "shell-quote": "^1.10.0", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-policy": ["@vybestack/llxprt-code-policy@file:packages/policy", { "dependencies": { "@iarna/toml": "^2.2.5", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", { "dependencies": { "@vybestack/llxprt-code-storage": "file:../storage", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", { "dependencies": { "env-paths": "^4.0.0", "ignore": "^7.0.0" }, "devDependencies": { "@types/node": "^24.2.1", "cross-env": "^7.0.3", "typescript": "^5.3.3" }, "optionalDependencies": { "@napi-rs/keyring": "^1.2.0" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", { "dependencies": { "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.219.0", "@opentelemetry/context-async-hooks": "^2.8.0", "@opentelemetry/core": "^2.8.0", "@opentelemetry/instrumentation-http": "^0.219.0", "@opentelemetry/resources": "^2.8.0", "@opentelemetry/sdk-logs": "^0.219.0", "@opentelemetry/sdk-metrics": "^2.8.0", "@opentelemetry/sdk-trace-base": "^2.8.0", "@opentelemetry/sdk-trace-node": "^2.8.0", "@opentelemetry/semantic-conventions": "^1.29.0", "@vybestack/llxprt-code-storage": "file:../storage", "debug": "^4.3.4", "zod": "^3.25.76" }, "devDependencies": { "@types/debug": "^4.1.12", "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", { "devDependencies": { "@lydell/node-pty": "1.1.0", "strip-ansi": "^7.1.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", { "dependencies": { "@ast-grep/lang-c": "^0.0.5", "@ast-grep/lang-cpp": "^0.0.5", "@ast-grep/lang-go": "^0.0.5", "@ast-grep/lang-java": "^0.0.6", "@ast-grep/lang-json": "^0.0.6", "@ast-grep/lang-python": "^0.0.5", "@ast-grep/lang-ruby": "^0.0.6", "@ast-grep/lang-rust": "^0.0.6", "@ast-grep/napi": "^0.40.5", "@lvce-editor/ripgrep": "^5.1.0", "ajv": "^8.17.1", "diff": "^8.0.3", "fast-glob": "^3.3.3", "glob": "^12.0.0", "html-to-text": "^9.0.5", "mime-types": "^3.0.1", "sharp": "^0.35.3", "shell-quote": "^1.10.0", "turndown": "^7.2.2", "zod": "^3.25.76", "zod-to-json-schema": "^3.25.1" }, "devDependencies": { "@types/html-to-text": "^9.0.4", "@types/mime-types": "^3.0.1", "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-ide-integration/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", { "dependencies": { "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.219.0", "@opentelemetry/context-async-hooks": "^2.8.0", "@opentelemetry/core": "^2.8.0", "@opentelemetry/instrumentation-http": "^0.219.0", "@opentelemetry/resources": "^2.8.0", "@opentelemetry/sdk-logs": "^0.219.0", "@opentelemetry/sdk-metrics": "^2.8.0", "@opentelemetry/sdk-trace-base": "^2.8.0", "@opentelemetry/sdk-trace-node": "^2.8.0", "@opentelemetry/semantic-conventions": "^1.29.0", "@vybestack/llxprt-code-storage": "file:../storage", "debug": "^4.3.4", "zod": "^3.25.76" }, "devDependencies": { "@types/debug": "^4.1.12", "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", { "dependencies": { "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", { "dependencies": { "@vybestack/llxprt-code-storage": "file:../storage", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", { "dependencies": { "env-paths": "^4.0.0", "ignore": "^7.0.0" }, "devDependencies": { "@types/node": "^24.2.1", "cross-env": "^7.0.3", "typescript": "^5.3.3" }, "optionalDependencies": { "@napi-rs/keyring": "^1.2.0" } }],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", { "dependencies": { "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.219.0", "@opentelemetry/context-async-hooks": "^2.8.0", "@opentelemetry/core": "^2.8.0", "@opentelemetry/instrumentation-http": "^0.219.0", "@opentelemetry/resources": "^2.8.0", "@opentelemetry/sdk-logs": "^0.219.0", "@opentelemetry/sdk-metrics": "^2.8.0", "@opentelemetry/sdk-trace-base": "^2.8.0", "@opentelemetry/sdk-trace-node": "^2.8.0", "@opentelemetry/semantic-conventions": "^1.29.0", "@vybestack/llxprt-code-storage": "file:../storage", "debug": "^4.3.4", "zod": "^3.25.76" }, "devDependencies": { "@types/debug": "^4.1.12", "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", { "dependencies": { "@ast-grep/lang-c": "^0.0.5", "@ast-grep/lang-cpp": "^0.0.5", "@ast-grep/lang-go": "^0.0.5", "@ast-grep/lang-java": "^0.0.6", "@ast-grep/lang-json": "^0.0.6", "@ast-grep/lang-python": "^0.0.5", "@ast-grep/lang-ruby": "^0.0.6", "@ast-grep/lang-rust": "^0.0.6", "@ast-grep/napi": "^0.40.5", "@lvce-editor/ripgrep": "^5.1.0", "ajv": "^8.17.1", "diff": "^8.0.3", "fast-glob": "^3.3.3", "glob": "^12.0.0", "html-to-text": "^9.0.5", "mime-types": "^3.0.1", "sharp": "^0.35.3", "shell-quote": "^1.10.0", "turndown": "^7.2.2", "zod": "^3.25.76", "zod-to-json-schema": "^3.25.1" }, "devDependencies": { "@types/html-to-text": "^9.0.4", "@types/mime-types": "^3.0.1", "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", { "dependencies": { "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", { "dependencies": { "@modelcontextprotocol/sdk": "^1.25.2", "@vybestack/llxprt-code-auth": "file:../auth", "@vybestack/llxprt-code-settings": "file:../settings", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "shell-quote": "^1.10.0", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", { "dependencies": { "@vybestack/llxprt-code-storage": "file:../storage", "zod": "^3.25.76" }, "devDependencies": { "@types/node": "^24.2.1", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", { "dependencies": { "env-paths": "^4.0.0", "ignore": "^7.0.0" }, "devDependencies": { "@types/node": "^24.2.1", "cross-env": "^7.0.3", "typescript": "^5.3.3" }, "optionalDependencies": { "@napi-rs/keyring": "^1.2.0" } }],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", { "dependencies": { "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.219.0", "@opentelemetry/context-async-hooks": "^2.8.0", "@opentelemetry/core": "^2.8.0", "@opentelemetry/instrumentation-http": "^0.219.0", "@opentelemetry/resources": "^2.8.0", "@opentelemetry/sdk-logs": "^0.219.0", "@opentelemetry/sdk-metrics": "^2.8.0", "@opentelemetry/sdk-trace-base": "^2.8.0", "@opentelemetry/sdk-trace-node": "^2.8.0", "@opentelemetry/semantic-conventions": "^1.29.0", "@vybestack/llxprt-code-storage": "file:../storage", "debug": "^4.3.4", "zod": "^3.25.76" }, "devDependencies": { "@types/debug": "^4.1.12", "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", { "devDependencies": { "@lydell/node-pty": "1.1.0", "strip-ansi": "^7.1.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", { "dependencies": { "@ast-grep/lang-c": "^0.0.5", "@ast-grep/lang-cpp": "^0.0.5", "@ast-grep/lang-go": "^0.0.5", "@ast-grep/lang-java": "^0.0.6", "@ast-grep/lang-json": "^0.0.6", "@ast-grep/lang-python": "^0.0.5", "@ast-grep/lang-ruby": "^0.0.6", "@ast-grep/lang-rust": "^0.0.6", "@ast-grep/napi": "^0.40.5", "@lvce-editor/ripgrep": "^5.1.0", "ajv": "^8.17.1", "diff": "^8.0.3", "fast-glob": "^3.3.3", "glob": "^12.0.0", "html-to-text": "^9.0.5", "mime-types": "^3.0.1", "sharp": "^0.35.3", "shell-quote": "^1.10.0", "turndown": "^7.2.2", "zod": "^3.25.76", "zod-to-json-schema": "^3.25.1" }, "devDependencies": { "@types/html-to-text": "^9.0.4", "@types/mime-types": "^3.0.1", "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-settings/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", { "dependencies": { "env-paths": "^4.0.0", "ignore": "^7.0.0" }, "devDependencies": { "@types/node": "^24.2.1", "cross-env": "^7.0.3", "typescript": "^5.3.3" }, "optionalDependencies": { "@napi-rs/keyring": "^1.2.0" } }],
-
-    "@vybestack/llxprt-code-telemetry/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", { "dependencies": { "env-paths": "^4.0.0", "ignore": "^7.0.0" }, "devDependencies": { "@types/node": "^24.2.1", "cross-env": "^7.0.3", "typescript": "^5.3.3" }, "optionalDependencies": { "@napi-rs/keyring": "^1.2.0" } }],
-
-    "@vybestack/llxprt-code-tools/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", { "devDependencies": { "@lydell/node-pty": "1.1.0", "strip-ansi": "^7.1.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", { "dependencies": { "env-paths": "^4.0.0", "ignore": "^7.0.0" }, "devDependencies": { "@types/node": "^24.2.1", "cross-env": "^7.0.3", "typescript": "^5.3.3" }, "optionalDependencies": { "@napi-rs/keyring": "^1.2.0" } }],
-
-    "@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", { "dependencies": { "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.219.0", "@opentelemetry/context-async-hooks": "^2.8.0", "@opentelemetry/core": "^2.8.0", "@opentelemetry/instrumentation-http": "^0.219.0", "@opentelemetry/resources": "^2.8.0", "@opentelemetry/sdk-logs": "^0.219.0", "@opentelemetry/sdk-metrics": "^2.8.0", "@opentelemetry/sdk-trace-base": "^2.8.0", "@opentelemetry/sdk-trace-node": "^2.8.0", "@opentelemetry/semantic-conventions": "^1.29.0", "@vybestack/llxprt-code-storage": "file:../storage", "debug": "^4.3.4", "zod": "^3.25.76" }, "devDependencies": { "@types/debug": "^4.1.12", "@types/node": "^24.2.1", "fast-check": "^4.2.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", { "devDependencies": { "@lydell/node-pty": "1.1.0", "strip-ansi": "^7.1.0", "typescript": "^5.3.3" } }],
-
-    "@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", { "dependencies": { "@ast-grep/lang-c": "^0.0.5", "@ast-grep/lang-cpp": "^0.0.5", "@ast-grep/lang-go": "^0.0.5", "@ast-grep/lang-java": "^0.0.6", "@ast-grep/lang-json": "^0.0.6", "@ast-grep/lang-python": "^0.0.5", "@ast-grep/lang-ruby": "^0.0.6", "@ast-grep/lang-rust": "^0.0.6", "@ast-grep/napi": "^0.40.5", "@lvce-editor/ripgrep": "^5.1.0", "ajv": "^8.17.1", "diff": "^8.0.3", "fast-glob": "^3.3.3", "glob": "^12.0.0", "html-to-text": "^9.0.5", "mime-types": "^3.0.1", "sharp": "^0.35.3", "shell-quote": "^1.10.0", "turndown": "^7.2.2", "zod": "^3.25.76", "zod-to-json-schema": "^3.25.1" }, "devDependencies": { "@types/html-to-text": "^9.0.4", "@types/mime-types": "^3.0.1", "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "typescript": "^5.3.3" } }],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp": ["@vybestack/llxprt-code-zed-acp@file:packages/zed-acp", { "dependencies": { "@agentclientprotocol/sdk": "^1.2.1", "@vybestack/llxprt-code-agents": "file:../agents", "@vybestack/llxprt-code-core": "file:../core", "@vybestack/llxprt-code-providers": "file:../providers", "@vybestack/llxprt-code-storage": "file:../storage", "@vybestack/llxprt-code-telemetry": "file:../telemetry", "@vybestack/llxprt-code-tools": "file:../tools", "glob": "^12.0.0", "zod": "^3.23.8" }, "devDependencies": { "@types/node": "^24.2.1", "@vybestack/llxprt-code-test-utils": "file:../test-utils", "typescript": "^5.3.3" } }],
 
     "@x70102/ink/string-width": ["string-width@7.2.0", "", { "dependencies": { "emoji-regex": "^10.3.0", "get-east-asian-width": "^1.0.0", "strip-ansi": "^7.1.0" } }, "sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ=="],
 
@@ -3139,77 +3104,41 @@
 
     "@types/request/form-data/mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
 
-    "@vybestack/llxprt-code-a2a-server/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", {}],
 
-    "@vybestack/llxprt-code-a2a-server/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-core": ["@vybestack/llxprt-code-core@file:packages/core", {}],
 
-    "@vybestack/llxprt-code-a2a-server/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-ide-integration": ["@vybestack/llxprt-code-ide-integration@file:packages/ide-integration", {}],
 
-    "@vybestack/llxprt-code-a2a-server/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", {}],
 
-    "@vybestack/llxprt-code-a2a-server/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-policy": ["@vybestack/llxprt-code-policy@file:packages/policy", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-ide-integration/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-providers": ["@vybestack/llxprt-code-providers@file:packages/providers", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-agents/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-ide-integration": ["@vybestack/llxprt-code-ide-integration@file:packages/ide-integration", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-settings/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", {}],
 
-    "@vybestack/llxprt-code-agents/@vybestack/llxprt-code-tools/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-policy": ["@vybestack/llxprt-code-policy@file:packages/policy", {}],
 
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-ide-integration/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", {}],
 
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
 
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
 
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
 
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-settings/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-telemetry/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-core/@vybestack/llxprt-code-tools/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
-
-    "@vybestack/llxprt-code-ide-integration/@vybestack/llxprt-code-telemetry/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-settings/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-telemetry/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-tools/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-settings/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-telemetry/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-providers/@vybestack/llxprt-code-tools/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
-
-    "@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-telemetry/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
-
-    "@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-tools/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-core/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-ide-integration/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
 
@@ -3223,11 +3152,41 @@
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-mcp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
 
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-auth": ["@vybestack/llxprt-code-auth@file:packages/auth", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-core": ["@vybestack/llxprt-code-core@file:packages/core", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-mcp": ["@vybestack/llxprt-code-mcp@file:packages/mcp", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-settings": ["@vybestack/llxprt-code-settings@file:packages/settings", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-providers/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
+
     "@vybestack/llxprt-code/@vybestack/llxprt-code-settings/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-telemetry/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
 
     "@vybestack/llxprt-code/@vybestack/llxprt-code-tools/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-agents": ["@vybestack/llxprt-code-agents@file:packages/agents", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-core": ["@vybestack/llxprt-code-core@file:packages/core", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-providers": ["@vybestack/llxprt-code-providers@file:packages/providers", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-storage": ["@vybestack/llxprt-code-storage@file:packages/storage", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-telemetry": ["@vybestack/llxprt-code-telemetry@file:packages/telemetry", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-test-utils": ["@vybestack/llxprt-code-test-utils@file:packages/test-utils", {}],
+
+    "@vybestack/llxprt-code/@vybestack/llxprt-code-zed-acp/@vybestack/llxprt-code-tools": ["@vybestack/llxprt-code-tools@file:packages/tools", {}],
 
     "ansi-align/string-width/emoji-regex": ["emoji-regex@8.0.0", "", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
 
