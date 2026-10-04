@@ -7,8 +7,6 @@
 /* @plan PLAN-20250212-LSP.P31 */
 /* @requirement REQ-DIAG-010, REQ-GRACE-050, REQ-GRACE-055 */
 
-import fs from 'node:fs/promises';
-
 import * as path from 'path';
 import * as Diff from 'diff';
 import process from 'node:process';
@@ -56,6 +54,7 @@ import {
   applyLineGuardedReplacement,
   toIdeConnectionStatus,
   readTextFileViaHost,
+  hostTextWriteIo,
   createDefaultToolHost,
   getTargetDirCompat,
   getWorkspaceRootsCompat,
@@ -65,6 +64,7 @@ import {
   type EditErrorInfo,
 } from './edit-utils.js';
 import { statFileSizeGate, validateFileSizeBytes } from '../utils/fileUtils.js';
+import { writeTextFileVerified } from '../utils/verifiedWrite.js';
 
 export {
   applyReplacement,
@@ -317,12 +317,7 @@ class EditToolInvocation extends BaseToolInvocation<
     filePath: string,
     content: string,
   ): Promise<void> {
-    const fileSystemService = this.host.getFileSystemService?.();
-    if (fileSystemService !== undefined) {
-      await fileSystemService.writeTextFile(filePath, content);
-      return;
-    }
-    await fs.writeFile(filePath, content, 'utf8');
+    await writeTextFileVerified(filePath, content, hostTextWriteIo(this.host));
   }
 
   /**

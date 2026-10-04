@@ -27,6 +27,7 @@ import { fuzzyReplace } from '../utils/fuzzy-replacer.js';
 import { validatePathWithinWorkspace } from '../utils/pathValidation.js';
 import { stringOrDefault } from '../utils/stringCoalescing.js';
 import { statFileSizeGate } from '../utils/fileUtils.js';
+import { nodeTextWriteIo, type TextWriteIo } from '../utils/verifiedWrite.js';
 
 /**
  * Computes the character offset for the start of a 1-based line number
@@ -392,6 +393,23 @@ export async function readTextFileViaHost(
   // use the pure helpers above.
   const fs = await import('node:fs/promises');
   return fs.readFile(filePath, 'utf8');
+}
+
+/**
+ * Text-write io for a tool host: the host's file-system service when it has
+ * one, node:fs otherwise. Used by verified writes so the read-back goes
+ * through the same channel the write took.
+ */
+export function hostTextWriteIo(host: IToolHost): TextWriteIo {
+  const fileSystemService = host.getFileSystemService?.();
+  if (fileSystemService === undefined) {
+    return nodeTextWriteIo;
+  }
+  return {
+    write: (filePath, content) =>
+      fileSystemService.writeTextFile(filePath, content),
+    read: (filePath) => fileSystemService.readTextFile(filePath),
+  };
 }
 
 function isNonNullObject(value: unknown): value is object {

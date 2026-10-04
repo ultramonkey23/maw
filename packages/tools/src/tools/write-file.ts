@@ -39,6 +39,11 @@ import { getSpecificMimeType, statFileSizeGate } from '../utils/fileUtils.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { validatePathWithinWorkspace } from '../utils/pathValidation.js';
 import { stringOrDefault } from '../utils/stringCoalescing.js';
+import {
+  nodeTextWriteIo,
+  writeTextFileVerified,
+  type TextWriteIo,
+} from '../utils/verifiedWrite.js';
 
 /**
  * Parameters for the WriteFile tool
@@ -131,6 +136,7 @@ class WriteFileToolInvocation extends BaseToolInvocation<
     messageBus: IToolMessageBus,
     toolName?: string,
     displayName?: string,
+    private readonly writeIo: TextWriteIo = nodeTextWriteIo,
   ) {
     super(params, messageBus, toolName, displayName);
   }
@@ -299,7 +305,7 @@ class WriteFileToolInvocation extends BaseToolInvocation<
       fs.mkdirSync(dirName, { recursive: true });
     }
 
-    fs.writeFileSync(filePath, fileContent, 'utf-8');
+    await writeTextFileVerified(filePath, fileContent, this.writeIo);
 
     const fileName = path.basename(filePath);
     const fileDiff = Diff.createPatch(
@@ -427,6 +433,7 @@ export class WriteFileTool
     private host: IToolHost,
     messageBusOrIdeService?: IToolMessageBus | IIdeService,
     ideService?: IIdeService,
+    private readonly writeIo: TextWriteIo = nodeTextWriteIo,
   ) {
     const resolved = resolveConstructorArguments(
       host,
@@ -523,6 +530,7 @@ export class WriteFileTool
       messageBus as IToolMessageBus,
       toolName ?? this.name,
       displayName ?? this.displayName,
+      this.writeIo,
     );
   }
 
