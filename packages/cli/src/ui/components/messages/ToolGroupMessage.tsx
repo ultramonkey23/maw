@@ -155,27 +155,47 @@ function computeAvailableHeightPerTool(
   );
 }
 
-function deriveBorderColors(filteredToolCalls: IndividualToolCallDisplay[]): {
+/**
+ * Status always outranks tool category. A shell command that failed must
+ * look failed, not merely look like another shell execution.
+ */
+export function deriveBorderColors(
+  filteredToolCalls: IndividualToolCallDisplay[],
+): {
   borderColor: string;
   borderDimColor: boolean;
   isShellCommand: boolean;
 } {
-  const hasPending = !filteredToolCalls.every(
-    (t) => t.status === ToolCallStatus.Success,
+  const statuses = filteredToolCalls.map((tool) => tool.status);
+  const hasError = statuses.includes(ToolCallStatus.Error);
+  const needsApproval = statuses.includes(ToolCallStatus.Confirming);
+  const isRunning = statuses.some(
+    (status) =>
+      status === ToolCallStatus.Executing ||
+      status === ToolCallStatus.Pending,
   );
+  const hasCanceled = statuses.includes(ToolCallStatus.Canceled);
   const isShellCommand = filteredToolCalls.some(
-    (t) => t.name === SHELL_COMMAND_NAME || t.name === SHELL_NAME,
+    (tool) => tool.name === SHELL_COMMAND_NAME || tool.name === SHELL_NAME,
   );
-  const getBorderColor = () => {
-    if (isShellCommand) {
-      return theme.ui.symbol;
-    }
-    return hasPending ? theme.status.warning : theme.border.default;
-  };
-  const borderColor = getBorderColor();
-  const borderDimColor = hasPending && !isShellCommand;
 
-  return { borderColor, borderDimColor, isShellCommand };
+  const borderColor = hasError
+    ? theme.status.error
+    : needsApproval
+      ? theme.status.warning
+      : isRunning
+        ? theme.border.focused
+        : hasCanceled
+          ? theme.text.secondary
+          : isShellCommand
+            ? theme.ui.symbol
+            : theme.border.default;
+
+  return {
+    borderColor,
+    borderDimColor: isRunning && !needsApproval && !hasError && !isShellCommand,
+    isShellCommand,
+  };
 }
 
 function renderToolCallItem(
