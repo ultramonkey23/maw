@@ -30,6 +30,7 @@ node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)
 # Never fall back to a generic glibc/musl ARM64 binary.
 bun_path=''
 for candidate in \
+  "$HOME/.local/share/maw/bun-1.3.14/bin/bun" \
   "$repo_root/node_modules/@oven/bun-linux-aarch64-android/bin/bun" \
   "$repo_root/node_modules/bun/bin/bun.exe" \
   "$repo_root/node_modules/bun/bin/bun"
@@ -46,7 +47,7 @@ if [ -z "$bun_path" ] && command -v bun >/dev/null 2>&1; then
   fi
 fi
 if [ -z "$bun_path" ]; then
-  fail "Android Bun unavailable. In $repo_root run npm install, then try maw --doctor. Existing ultralab is unchanged."
+  fail "Android Bun unavailable. Run: sh $repo_root/scripts/bootstrap-termux-bun.sh (before npm install). Existing ultralab is unchanged."
 fi
 bun_version=$("$bun_path" --version) || fail "Bun could not execute: $bun_path"
 node -e '
@@ -74,7 +75,7 @@ if [ "${1:-}" = '--doctor' ]; then
 fi
 
 if [ "${1:-}" = '--prepare' ]; then
-  (cd "$repo_root" && "$bun_path" run generate) || fail 'MAW generate failed; no launcher was installed.'
+  (cd "$repo_root" && "$bun_path" "$repo_root/scripts/generate-git-commit-info.ts" && "$bun_path" "$repo_root/scripts/generate_prompt_manifest.ts") || fail 'MAW source generation failed; no launcher was installed.'
   exit 0
 fi
 
