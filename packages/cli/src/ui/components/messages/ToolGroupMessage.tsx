@@ -175,8 +175,13 @@ export function deriveBorderColors(
       status === ToolCallStatus.Pending,
   );
   const hasCanceled = statuses.includes(ToolCallStatus.Canceled);
+  // Tool results may carry either the user-facing label or the canonical
+  // registry identifier. A failure must remain visually identifiable in both.
   const isShellCommand = filteredToolCalls.some(
-    (tool) => tool.name === SHELL_COMMAND_NAME || tool.name === SHELL_NAME,
+    (tool) =>
+      tool.name === SHELL_COMMAND_NAME ||
+      tool.name === SHELL_NAME ||
+      canonicalizeToolName(tool.name) === 'run_shell_command',
   );
 
   const borderColor = hasError
