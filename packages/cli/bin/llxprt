@@ -477,6 +477,15 @@ _llxprt_probe_oven() {
     *) return 1 ;;
   esac
 
+  # uname reports Linux in Termux; select the Android/Bionic Bun ABI instead
+  # of the generic Linux/glibc arm64 package. Only trust a Termux prefix.
+  if [ "$_llxprt_po_os" = linux ]; then
+    case "${PREFIX:-}" in
+      */com.termux/files/usr) _llxprt_po_os=android ;;
+      *) ;;
+    esac
+  fi
+
   _llxprt_po_arch=""
   case "$(uname -m 2>/dev/null || printf '%s' '')" in
     x86_64|amd64) _llxprt_po_arch=x64 ;;
@@ -578,6 +587,13 @@ _llxprt_probe_oven() {
             fi
           fi
           ;;
+        *) return 1 ;;
+      esac
+      ;;
+    android)
+      case "$_llxprt_po_arch" in
+        arm64) set -- '@oven/bun-linux-aarch64-android' ;;
+        x64)   set -- '@oven/bun-linux-x64-android' ;;
         *) return 1 ;;
       esac
       ;;
