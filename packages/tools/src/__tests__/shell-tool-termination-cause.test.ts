@@ -325,5 +325,49 @@ describe('shell result contracts @plan:issue1995 @plan:issue3200', () => {
         }
       },
     );
+    describe('H: abnormal Windows exit status', () => {
+      it.each([
+        [-1073741510, '0xC000013A'],
+        [3221225786, '0xC000013A'],
+      ])(
+        'names the console-control termination for exitCode %s',
+        async (exitCode, hex) => {
+          const result = await runHost(
+            causeHost({ inactivityTimedOut: false, signal: null, exitCode }),
+          );
+          for (const content of [result.llmContent, result.returnDisplay]) {
+            expect(String(content)).toContain('Termination cause:');
+            expect(String(content)).toContain(hex);
+            expect(String(content)).toContain('console control');
+            expect(String(content)).toContain('is_background');
+          }
+        },
+      );
+      it('names a generic abnormal status without inventing a specific cause', async () => {
+        const result = await runHost(
+          causeHost({
+            inactivityTimedOut: false,
+            signal: null,
+            exitCode: -1073741819,
+          }),
+        );
+        for (const content of [result.llmContent, result.returnDisplay]) {
+          expect(String(content)).toContain('Termination cause:');
+          expect(String(content)).toContain('0xC0000005');
+          expect(String(content)).toContain('abnormal');
+        }
+      });
+      it.each([0, 1, 2, 127])(
+        'adds no termination cause for ordinary exitCode %s',
+        async (exitCode) => {
+          const result = await runHost(
+            causeHost({ inactivityTimedOut: false, signal: null, exitCode }),
+          );
+          for (const content of [result.llmContent, result.returnDisplay]) {
+            expect(String(content)).not.toContain('Termination cause:');
+          }
+        },
+      );
+    });
   });
 });

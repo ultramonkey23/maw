@@ -205,6 +205,30 @@ export function appendSurvivorNoticeToResult(
 }
 
 /**
+ * Windows NTSTATUS values report as the exit code when a process is
+ * terminated abnormally (signed 32-bit, e.g. 0xC000013A STATUS_CONTROL_C_EXIT
+ * shows as -1073741510; some hosts report the unsigned form). Ordinary
+ * program exit codes stay in 0-255 and never match.
+ */
+export function isAbnormalWindowsExitStatus(exitCode: number | null): boolean {
+  return (
+    typeof exitCode === 'number' &&
+    Number.isFinite(exitCode) &&
+    (exitCode < 0 || exitCode >= 0xc0000000)
+  );
+}
+
+const WINDOWS_ABNORMAL_EXIT_NOTES: Record<number, string> = {
+  [0xc0000005]: 'an access violation terminated the process',
+  [0xc000013a]:
+    'a console control event (Ctrl+C / break) terminated the process',
+  [0xc0000135]: 'a missing DLL terminated the process',
+  [0xc0000142]: 'a DLL initialization failure terminated the process',
+  [0xc0000409]: 'a fail-fast / stack-buffer-overrun termination',
+  [0xc0000602]: 'a fail-fast termination',
+};
+
+/**
  * Names the termination cause without overriding a concurrent timeout or
  * cancellation. An inactivity flag records a separate fact even when the
  * caller's abort signal also fired (Issue #3589).
@@ -234,6 +258,22 @@ export function buildTerminationCauseNotice(
     return (
       `Termination cause: signal ${result.signal} originated outside the shell tool; ` +
       'not a tool timeout, not an inactivity kill, and not a user cancellation.'
+    );
+  }
+  if (
+    result.aborted !== true &&
+    (result.signal === null || result.signal === '') &&
+    isAbnormalWindowsExitStatus(result.exitCode)
+  ) {
+    const exitCode = result.exitCode as number;
+    const hex = `0x${(exitCode >>> 0).toString(16).toUpperCase()}`;
+    const note =
+      WINDOWS_ABNORMAL_EXIT_NOTES[exitCode >>> 0] ??
+      'the process terminated abnormally before returning a normal exit code';
+    return (
+      `Termination cause: the command exited with Windows abnormal-termination status ${hex} (${exitCode}) — ${note}. ` +
+      'This is not a normal program exit code; if the host keeps interrupting foreground processes, ' +
+      're-run the command as a detached/background job (is_background).'
     );
   }
   return undefined;
