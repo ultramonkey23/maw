@@ -11,7 +11,8 @@ import { LoadingIndicator } from './LoadingIndicator.js';
 import { StreamingContext } from '../contexts/StreamingContext.js';
 import { StreamingState } from '../types.js';
 import { Colors } from '../colors.js';
-import { vi } from 'bun:test';
+import { INTERACTIVE_SHELL_WAITING_PHRASE } from '../hooks/usePhraseCycler.js';
+import { describe, expect, it, vi } from 'bun:test';
 
 // Mock RespondingSpinner
 void vi.mock('./RespondingSpinner.js', () => ({
@@ -47,6 +48,40 @@ describe('<LoadingIndicator />', () => {
     currentLoadingPhrase: 'Loading...',
     elapsedTime: 5,
   };
+
+  describe('MAW live status', () => {
+    it('labels a real response without suggesting tool execution', () => {
+      const frame = renderWithContext(
+        <LoadingIndicator currentLoadingPhrase="Reading context" elapsedTime={3} />,
+        StreamingState.Responding,
+      ).lastFrame() ?? '';
+      expect(frame).toContain('RESPONSE');
+      expect(frame).toContain('Reading context');
+      expect(frame).not.toContain('APPROVAL');
+    });
+
+    it('makes approval visibly distinct and avoids a misleading cancel timer', () => {
+      const frame = renderWithContext(
+        <LoadingIndicator currentLoadingPhrase="Confirm change" elapsedTime={3} />,
+        StreamingState.WaitingForConfirmation,
+      ).lastFrame() ?? '';
+      expect(frame).toContain('APPROVAL');
+      expect(frame).toContain('Confirm change');
+      expect(frame).not.toContain('esc to cancel');
+    });
+
+    it('labels interactive shell focus instead of reasoning', () => {
+      const frame = renderWithContext(
+        <LoadingIndicator
+          currentLoadingPhrase={INTERACTIVE_SHELL_WAITING_PHRASE}
+          elapsedTime={3}
+        />,
+        StreamingState.Responding,
+      ).lastFrame() ?? '';
+      expect(frame).toContain('SHELL');
+      expect(frame).not.toContain('APPROVAL');
+    });
+  });
 
   it('should not render when streamingState is Idle', () => {
     const { lastFrame } = renderWithContext(
