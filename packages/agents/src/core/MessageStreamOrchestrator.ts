@@ -45,6 +45,15 @@ import type { ComplexityAnalyzer } from '@vybestack/llxprt-code-core/services/co
 import { handleTerminalEvent } from './MessageStreamTerminalHandler.js';
 import { applyRetryAwareLoopDetection } from './retryAwareLoopDetection.js';
 
+/**
+ * Ephemeral-settings read surface needed by the post-turn continuation gate.
+ * The reader is optional so partial Config doubles in tests behave like
+ * empty settings instead of crashing; production Config always provides it.
+ */
+type EphemeralSettingsReader = {
+  getEphemeralSettings?: () => Record<string, unknown>;
+};
+
 export interface MessageStreamDeps {
   config: Config;
   getChat: () => ChatSession;
@@ -659,13 +668,25 @@ export class MessageStreamOrchestrator {
     const { todoContinuationService, sendMessageStream } = this.deps;
     const getBoundedTurns = () => Math.min(ctx.turns, MAX_TURNS);
 
-    const reminderState =
-      await todoContinuationService.getTodoReminderForCurrentState();
+    const settingsReader: EphemeralSettingsReader = this.deps.config;
+    const settings: Record<string, unknown> =
+      settingsReader.getEphemeralSettings?.() ?? {};
+    const disabled = settings['tools.disabled'];
+    const toolsDisabled =
+      Array.isArray(disabled) &&
+      (disabled.includes('todo_read') || disabled.includes('todo_write'));
+    const continuationEnabled =
+      settings['todo-continuation'] !== false && !toolsDisabled;
+
+    const reminderState = continuationEnabled
+      ? await todoContinuationService.getTodoReminderForCurrentState()
+      : { todos: [] as Todo[], activeTodos: [] as Todo[] };
     const latestSnapshot = reminderState.todos;
     const activeTodos = reminderState.activeTodos;
 
     const todosStillPending = activeTodos.length > 0;
     const hasPendingReminder =
+      continuationEnabled &&
       todoContinuationService.toolCallReminderLevel !== 'none';
 
     if (!todosStillPending && !hasPendingReminder) {
