@@ -7,6 +7,7 @@
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { Colors, SemanticColors } from '../colors.js';
+import { getMawPalette } from './mawPalette.js';
 import type { MemoryState } from '../cliUiRuntime.js';
 
 interface TipsProps {
@@ -19,18 +20,19 @@ interface TipsProps {
  */
 export const Tips: React.FC<TipsProps> = ({ memory }) => {
   const hasWorkspaceInstructions = memory.getLlxprtMdFileCount() > 0;
+  const maw = getMawPalette();
   return (
     <Box flexDirection="column" paddingLeft={1}>
-      <Text color={Colors.AccentYellow} bold>FIELD NOTES</Text>
+      <Text color={maw.ember} bold>FIELD NOTES</Text>
       <Text color={SemanticColors.text.secondary}>
-        <Text color={Colors.AccentRed}>TRACK</Text>  Inspect the cause, not just the symptom.
+        <Text color={maw.iron}>TRACK</Text>  Inspect the cause, not just the symptom.
       </Text>
       <Text color={SemanticColors.text.secondary}>
-        <Text color={Colors.AccentRed}>FORGE</Text>  Change the code. Run the checks.
+        <Text color={maw.iron}>FORGE</Text>  Change the code. Run the checks.
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Text color={SemanticColors.text.secondary}>
-          <Text color={Colors.AccentYellow}>/help</Text> commands  /  <Text color={Colors.AccentYellow}>/model</Text> select a model
+          <Text color={maw.ember}>/help</Text> commands  /  <Text color={maw.ember}>/model</Text> select a model
         </Text>
         <Text color={SemanticColors.text.secondary}>
           {hasWorkspaceInstructions
