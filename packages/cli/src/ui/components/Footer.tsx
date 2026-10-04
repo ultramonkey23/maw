@@ -473,7 +473,7 @@ const FooterMetricsRow = React.memo(
           compact={isCompact}
           detailed={isDetailed}
         />
-        {tokensPerMinute !== undefined && (
+        {tokensPerMinute !== undefined && tokensPerMinute > 0 && (
           <>
             <Text color={SemanticColors.text.secondary}> | </Text>
             <DebouncedTPMDisplay
@@ -482,7 +482,7 @@ const FooterMetricsRow = React.memo(
             />
           </>
         )}
-        {throttleWaitTimeMs !== undefined && (
+        {throttleWaitTimeMs !== undefined && throttleWaitTimeMs > 0 && (
           <>
             <Text color={SemanticColors.text.secondary}> | </Text>
             <DebouncedWaitDisplay
@@ -654,7 +654,7 @@ const FooterSecondLine = React.memo((props: FooterSecondLineProps) => {
             showModelName={showModelName}
             runtime={runtime}
           />
-          {sessionTokenTotal !== undefined && (
+          {sessionTokenTotal !== undefined && sessionTokenTotal > 0 && (
             <>
               <Text color={SemanticColors.text.secondary}> | </Text>
               <Text color={SemanticColors.text.accent}>
