@@ -7,6 +7,7 @@
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { Colors, SemanticColors } from '../colors.js';
+import { getMawPalette } from './mawPalette.js';
 import { shortAsciiLogo, longAsciiLogo } from './AsciiArt.js';
 import { getAsciiArtWidth } from '../utils/textUtils.js';
 import { ThemedGradient } from './ThemedGradient.js';
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   nightly,
 }) => {
   const isCustom = Boolean(customAsciiArt);
+  const maw = getMawPalette();
   const isWide = terminalWidth >= getAsciiArtWidth(longAsciiLogo) + 2;
   const displayTitle = customAsciiArt
     ? customAsciiArt
@@ -42,15 +44,15 @@ export const Header: React.FC<HeaderProps> = ({
           <Text color={Colors.Foreground}>{displayTitle}</Text>
         </ThemedGradient>
       ) : (
-        <Text bold={!isCustom} color={isCustom ? SemanticColors.text.accent : Colors.AccentRed}>
+        <Text bold={!isCustom} color={isCustom ? SemanticColors.text.accent : maw.iron}>
           {displayTitle}
         </Text>
       )}
-      {!isCustom && (
+      {!isCustom && terminalWidth >= getAsciiArtWidth(shortAsciiLogo) && (
         <Box paddingLeft={1} flexDirection="row">
-          <Text bold color={Colors.AccentYellow}>LIVING CODE</Text>
+          <Text bold color={maw.ember}>LIVING CODE</Text>
           {isWide && (
-            <Text color={SemanticColors.text.secondary}> // TRACE / FORGE / PROVE</Text>
+            <Text color={maw.bone}> // TRACE / FORGE / PROVE</Text>
           )}
         </Box>
       )}
