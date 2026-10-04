@@ -6,7 +6,7 @@
 
 import type React from 'react';
 import { Box, Text } from 'ink';
-import { Colors, SemanticColors } from '../colors.js';
+import { SemanticColors } from '../colors.js';
 import { getMawPalette } from './mawPalette.js';
 import type { MemoryState } from '../cliUiRuntime.js';
 
