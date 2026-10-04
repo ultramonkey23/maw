@@ -30,6 +30,14 @@ describe('MAW tool-group visual state', () => {
     expect(state.borderDimColor).toBe(false);
   });
 
+  it('recognizes the normal Shell Command display label too', () => {
+    const state = deriveBorderColors([
+      tool(ToolCallStatus.Success, 'Shell Command'),
+    ]);
+    expect(state.isShellCommand).toBe(true);
+    expect(state.borderColor).toBe(theme.ui.symbol);
+  });
+
   it('does not let a running tool hide a sibling error', () => {
     const state = deriveBorderColors([
       tool(ToolCallStatus.Executing),
