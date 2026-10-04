@@ -506,6 +506,51 @@ describe('Footer', () => {
     });
   });
 
+  describe('MAW idle telemetry density', () => {
+    it('does not flood an idle footer with zero TPM, wait, and token totals', () => {
+      mockUseResponsive.mockReturnValue({
+        width: 120,
+        breakpoint: 'STANDARD',
+        isNarrow: false,
+        isStandard: true,
+        isWide: false,
+      });
+      const frame = render(
+        <Footer
+          {...defaultProps}
+          tokensPerMinute={0}
+          throttleWaitTimeMs={0}
+          sessionTokenTotal={0}
+        />,
+      ).lastFrame() ?? '';
+      expect(frame).toContain('Context:');
+      expect(frame).not.toContain('TPM:');
+      expect(frame).not.toContain('Wait:');
+      expect(frame).not.toContain('Tokens: 0');
+    });
+
+    it('retains actual activity metrics when they become meaningful', () => {
+      mockUseResponsive.mockReturnValue({
+        width: 120,
+        breakpoint: 'STANDARD',
+        isNarrow: false,
+        isStandard: true,
+        isWide: false,
+      });
+      const frame = render(
+        <Footer
+          {...defaultProps}
+          tokensPerMinute={12}
+          throttleWaitTimeMs={500}
+          sessionTokenTotal={27}
+        />,
+      ).lastFrame() ?? '';
+      expect(frame).toContain('TPM:');
+      expect(frame).toContain('Wait:');
+      expect(frame).toContain('Tokens: 27');
+    });
+  });
+
   describe('memory display uses actual heap limit', () => {
     it('should calculate percentage against actual heap limit and show correct denominator', () => {
       mockProcessVersions.bun = '';
