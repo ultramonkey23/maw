@@ -7,6 +7,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { ensureDir } from '../utils/paths.js';
+import { linkOrCopyExclusive } from '@vybestack/llxprt-code-storage/utils/linkOrCopyExclusive.js';
 import { Storage } from '@vybestack/llxprt-code-settings';
 import { debugLogger } from '../utils/debugLogger.js';
 import { delay } from '../utils/delay.js';
@@ -214,7 +215,7 @@ export class Logger {
     // successor acquired between our stat and rename. Restore it without clobbering
     // a lock that may have been re-created at the live path in the meantime.
     try {
-      await fs.link(guardPath, lockPath);
+      await linkOrCopyExclusive(guardPath, lockPath);
       await fs.unlink(guardPath);
     } catch {
       debugLogger.debug(
@@ -256,7 +257,7 @@ export class Logger {
    * to a unique guard; the guard's inode is compared against the descriptor we
    * have pinned since acquisition, which proves ownership race-free. Only our
    * own inode is ever unlinked — a mismatched guard (our lock was broken and a
-   * successor owns the path) is restored via a hard link, which fails EEXIST
+   * successor owns the path) is restored via a hard link or exclusive copy, which fails EEXIST
    * rather than clobbering a newer lock.
    */
   private async _releaseLogLock(
@@ -293,7 +294,7 @@ export class Logger {
       // Not our inode: we were broken mid-hold and renamed away a successor's
       // live lock. Restore it without clobbering a lock that may already have
       // been re-created at the live path.
-      await fs.link(guardPath, lockPath);
+      await linkOrCopyExclusive(guardPath, lockPath);
       await fs.unlink(guardPath);
     } catch {
       debugLogger.debug(

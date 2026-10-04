@@ -6,6 +6,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { linkOrCopyExclusive } from '@vybestack/llxprt-code-storage/utils/linkOrCopyExclusive.js';
 
 /**
  * Backend-neutral image operation contract.
@@ -413,15 +414,17 @@ async function writeBytesToTemp(
 }
 
 /**
- * Atomically publish the temp file to the target via hard-link (no-clobber).
- * link() fails with EEXIST if the target exists; it does NOT overwrite.
+ * Atomically publish the temp file to the target without clobbering: a hard
+ * link where the filesystem allows it, an exclusive copy where it denies
+ * links (Android/Termux). Both fail with EEXIST if the target exists; neither
+ * overwrites.
  */
 async function publishTempToTarget(
   tempPath: string,
   targetPath: string,
 ): Promise<void> {
   try {
-    await fs.link(tempPath, targetPath);
+    await linkOrCopyExclusive(tempPath, targetPath);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === 'EEXIST') {

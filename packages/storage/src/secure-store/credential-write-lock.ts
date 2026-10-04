@@ -44,6 +44,7 @@ import { promises as fs } from 'node:fs';
 import { hostname as nodeHostname } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { linkOrCopyExclusive } from '../utils/linkOrCopyExclusive.js';
 import type { StorageLogger } from '../types/logger.js';
 import { NullStorageLoggerImpl } from '../types/logger.js';
 import { SecureStoreError } from './secure-store-errors.js';
@@ -720,8 +721,9 @@ export class CredentialWriteLock {
   }
 
   /**
-   * Publishes the owner record through a same-directory temp file + `fs.link()`
-   * (atomic — never replaces an existing owner).
+   * Publishes the owner record through a same-directory temp file plus an
+   * exclusive publish (hard link, or exclusive copy where the filesystem
+   * denies links) — never replaces an existing owner.
    */
   private async publishOwnerFile(
     targetPath: string,
@@ -736,7 +738,7 @@ export class CredentialWriteLock {
       await handle.close();
       handle = undefined;
       try {
-        await fs.link(temporaryPath, targetPath);
+        await linkOrCopyExclusive(temporaryPath, targetPath);
       } catch (error) {
         if (isErrnoCode(error, 'EEXIST')) {
           return false;

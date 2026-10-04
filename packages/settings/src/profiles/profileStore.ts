@@ -9,6 +9,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { channel } from 'node:diagnostics_channel';
+import { linkOrCopyExclusive } from '@vybestack/llxprt-code-storage/utils/linkOrCopyExclusive.js';
 import { parseProfileJson } from '../settings/validation.js';
 /**
  * diagnostics_channel name published exactly once per async lock acquisition
@@ -918,8 +919,9 @@ export async function writeProfileFile(
  * Create a profile file exclusively using crash-safe atomic publication.
  *
  * Writes to an exclusive same-directory temp (wx), fsync/close, then publishes
- * via hard-link (`link`, fails EEXIST atomically) then unlink temp + fsync
- * dir. If the final file already exists, EEXIST is caught and 'exists' is
+ * via hard link or exclusive copy where links are denied (EEXIST atomically,
+ * never clobbering) then unlink temp + fsync dir. If the final file already
+ * exists, EEXIST is caught and 'exists' is
  * returned. Primary errors are preserved; cleanup/fsync errors are aggregated
  * so they are not masked (#2).
  */
@@ -945,7 +947,7 @@ async function createProfileExclusive(
     }
 
     try {
-      await fs.link(tmpPath, filePath);
+      await linkOrCopyExclusive(tmpPath, filePath);
       await fsyncDir(dir);
       result = { kind: 'written', path: filePath };
     } catch (error) {

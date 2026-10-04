@@ -7,7 +7,7 @@
  * lock left by a SIGKILL'd process requires explicit/manual recovery.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'bun:test';
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
@@ -437,6 +437,69 @@ describe('profileStore — writeProfileFile create mode', () => {
       );
     },
   );
+
+  it('releases the lock after writing', async () => {
+    await writeProfileFile(tempDir, 'myprof', '{"provider":"y"}', 'create');
+    expect(fs.existsSync(lockPathForProfilesDir(tempDir))).toBe(false);
+  });
+});
+
+describe('profileStore — create mode with hard links denied (Android/Termux)', () => {
+  let tempDir: string;
+
+  /** Make every hard-link attempt fail the way Android/Termux does. */
+  function useDeniedHardLinks(): void {
+    beforeEach(() => {
+      vi.spyOn(fsp, 'link').mockImplementation(() => {
+        const error = new Error(
+          'operation not permitted, link',
+        ) as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        throw error;
+      });
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+  }
+
+  beforeEach(async () => {
+    tempDir = await makeTempDir();
+  });
+
+  afterEach(async () => {
+    await fsp.rm(tempDir, { recursive: true, force: true });
+  });
+
+  useDeniedHardLinks();
+
+  it('writes a new profile through the exclusive-copy fallback', async () => {
+    const result = await writeProfileFile(
+      tempDir,
+      'myprof',
+      '{"provider":"y"}',
+      'create',
+    );
+    expect(result.kind).toBe('written');
+    expect(fs.readFileSync(path.join(tempDir, 'myprof.json'), 'utf-8')).toBe(
+      '{"provider":"y"}',
+    );
+  });
+
+  it('returns exists when create collides with an existing file', async () => {
+    const existing = '{"provider":"old"}';
+    await writeProfileFile(tempDir, 'myprof', existing, 'create');
+    const result = await writeProfileFile(
+      tempDir,
+      'myprof',
+      '{"provider":"new"}',
+      'create',
+    );
+    expect(result.kind).toBe('exists');
+    expect(fs.readFileSync(path.join(tempDir, 'myprof.json'), 'utf-8')).toBe(
+      existing,
+    );
+  });
 
   it('releases the lock after writing', async () => {
     await writeProfileFile(tempDir, 'myprof', '{"provider":"y"}', 'create');

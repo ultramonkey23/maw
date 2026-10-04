@@ -41,6 +41,11 @@
       "bun": "./src/utils/gitIgnoreParser.ts",
       "import": "./dist/src/utils/gitIgnoreParser.js"
     },
+    "./utils/linkOrCopyExclusive.js": {
+      "types": "./dist/src/utils/linkOrCopyExclusive.d.ts",
+      "bun": "./src/utils/linkOrCopyExclusive.ts",
+      "import": "./dist/src/utils/linkOrCopyExclusive.js"
+    },
     "./storage/secure-store.js": {
       "types": "./dist/src/secure-store/secure-store.d.ts",
       "bun": "./src/secure-store/secure-store.ts",

@@ -44,6 +44,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { hostname } from 'node:os';
+import { linkOrCopyExclusive } from '@vybestack/llxprt-code-storage/utils/linkOrCopyExclusive.js';
 
 /** Name of the lease file inside the global temp directory. */
 const LEASE_FILE_NAME = '.llxprt-janitor.lease';
@@ -193,14 +194,14 @@ export class JanitorLease {
     }
 
     try {
-      await fsp.link(tempPath, leasePath);
+      await linkOrCopyExclusive(tempPath, leasePath);
       return true;
     } catch (error: unknown) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       return false;
     } finally {
-      // The hard link means leasePath shares the inode; unlinking temp
-      // just decrements the link count.
+      // Unlinking temp only drops the temp name: leasePath either shares the
+      // inode (hard link) or carries its own exclusive copy of the payload.
       await safeUnlink(tempPath);
     }
   }
@@ -450,23 +451,26 @@ export class JanitorLease {
   }
 
   /**
-   * Acquire the per-lease transition claim by atomically hard-linking the
-   * current lease inode to the well-known claim path.
+   * Acquire the per-lease transition claim by atomically publishing the
+   * current lease payload at the well-known claim path: a hard link to the
+   * lease inode where the filesystem allows one, an exclusive copy of the
+   * payload where it denies links (Android/Termux).
    *
-   * - `link(leasePath, claimPath)` succeeds for exactly one contender.
+   * - Publishing at the claim path succeeds for exactly one contender.
    * - ENOENT means the lease does not exist (no inode to claim — proceed
    *   without owning a claim).
    * - EEXIST means another contender owns the claim — try conservative reclaim.
-   * - A crashed claim is a hard link, so removing it only decrements a link
-   *   count and cannot remove or replace the live lease.
+   * - A crashed claim only ever names the claim path (a second link to the
+   *   lease inode, or a standalone copy of its payload), so removing it can
+   *   never remove or replace the live lease.
    */
   private static async acquireTransitionClaim(
     leasePath: string,
   ): Promise<TransitionClaimResult> {
     const claimPath = JanitorLease.getClaimPath(leasePath);
     try {
-      await fsp.link(leasePath, claimPath);
-      return { canProceed: true, ownsClaim: true }; // Claimed the lease inode.
+      await linkOrCopyExclusive(leasePath, claimPath);
+      return { canProceed: true, ownsClaim: true }; // Claimed the lease payload.
     } catch (error: unknown) {
       const code = (error as NodeJS.ErrnoException).code;
       // No lease exists — nothing to serialize against.  Proceed without a
@@ -481,10 +485,11 @@ export class JanitorLease {
   /**
    * Conservatively reclaim a stale transition claim.
    *
-   * The claim is a hard link to a lease inode, so its content IS the lease
-   * content.  When the lease content indicates staleness, the claim owner has
-   * crashed and the claim is safe to remove — it only decrements a link
-   * count.  A live claim (fresh heartbeat or alive PID within bound) is
+   * The claim always carries the lease content frozen at claim time (a hard
+   * link to the lease inode, or an exclusive copy of its payload where links
+   * are denied), so its content IS the lease content.  When the lease content indicates staleness, the claim owner has
+   * crashed and the claim is safe to remove — it can never touch the live
+   * lease.  A live claim (fresh heartbeat or alive PID within bound) is
    * NEVER removed.
    */
   private static async tryReclaimClaim(
@@ -509,9 +514,9 @@ export class JanitorLease {
       return { canProceed: false, ownsClaim: false };
     }
 
-    // Retry the claim.  The lease inode may have changed during recovery.
+    // Retry the claim.  The lease may have changed during recovery.
     try {
-      await fsp.link(leasePath, claimPath);
+      await linkOrCopyExclusive(leasePath, claimPath);
       return { canProceed: true, ownsClaim: true };
     } catch (error: unknown) {
       const code = (error as NodeJS.ErrnoException).code;
@@ -522,7 +527,13 @@ export class JanitorLease {
 
   /**
    * Verify that the transition claim and the lease path still identify the
-   * same inode.  Every mutator must call this before unlinking leasePath.
+   * same lease.  Every mutator must call this before unlinking leasePath.
+   *
+   * Hard-link claims share the lease inode, so dev/ino equality is the
+   * strongest proof.  Where the filesystem denies hard links the claim is an
+   * exclusive copy (Android/Termux), and payload equality is the next best
+   * proof: the random owner token makes a byte-identical replacement lease
+   * practically unique.
    */
   private static async verifyTransitionClaim(
     leasePath: string,
@@ -531,7 +542,14 @@ export class JanitorLease {
     try {
       const leaseStat = await fsp.stat(leasePath);
       const claimStat = await fsp.stat(claimPath);
-      return leaseStat.dev === claimStat.dev && leaseStat.ino === claimStat.ino;
+      if (leaseStat.dev === claimStat.dev && leaseStat.ino === claimStat.ino) {
+        return true;
+      }
+      const [leaseContent, claimContent] = await Promise.all([
+        fsp.readFile(leasePath, 'utf-8'),
+        fsp.readFile(claimPath, 'utf-8'),
+      ]);
+      return leaseContent === claimContent;
     } catch {
       return false;
     }

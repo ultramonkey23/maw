@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'bun:test';
 import fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {
@@ -420,6 +421,81 @@ describe('writeImageAtomically', () => {
     ).toBeInstanceOf(ImageOperationError);
     // pre-existing content untouched (no-clobber).
     expect(await fs.promises.readFile(target, 'utf8')).toBe('pre-existing');
+  });
+});
+
+describe('writeImageAtomically — Android/Termux hard-link-denied publication', () => {
+  let workspaceRoot = '';
+
+  /** Make every hard-link attempt fail the way Android/Termux does. */
+  function useDeniedHardLinks(): void {
+    beforeEach(() => {
+      vi.spyOn(fsPromises, 'link').mockImplementation(() => {
+        const error = new Error(
+          'operation not permitted, link',
+        ) as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        throw error;
+      });
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+  }
+
+  beforeEach(async () => {
+    workspaceRoot = await fs.promises.realpath(
+      await fs.promises.mkdtemp(
+        path.join(os.tmpdir(), 'llxprt-image-linkless-'),
+      ),
+    );
+  });
+  afterEach(async () => {
+    await fs.promises.rm(workspaceRoot, { recursive: true, force: true });
+  });
+
+  useDeniedHardLinks();
+
+  it('publishes the complete payload through the exclusive-copy fallback', async () => {
+    const target = path.join(workspaceRoot, 'cat.png');
+    const png = makeRealMinimalPng();
+    await writeImageAtomically(png, target, new AbortController().signal);
+    const written = await fs.promises.readFile(target);
+    expect(written.equals(png)).toBe(true);
+    const entries = await fs.promises.readdir(workspaceRoot);
+    expect(entries).toStrictEqual(['cat.png']);
+  });
+
+  it('still rejects an existing file and preserves it', async () => {
+    const target = path.join(workspaceRoot, 'cat.png');
+    await fs.promises.writeFile(target, 'existing');
+    expect(
+      await captureRejection(
+        writeImageAtomically(
+          makeRealMinimalPng(),
+          target,
+          new AbortController().signal,
+        ),
+      ),
+    ).toBeInstanceOf(ImageOperationError);
+    expect(await fs.promises.readFile(target, 'utf8')).toBe('existing');
+    const entries = await fs.promises.readdir(workspaceRoot);
+    expect(entries.filter((e) => e.endsWith('.tmp'))).toHaveLength(0);
+  });
+
+  it('concurrent writes still do not both succeed', async () => {
+    const target = path.join(workspaceRoot, 'cat.png');
+    const png = makeRealMinimalPng();
+    const results = await Promise.allSettled([
+      writeImageAtomically(png, target, new AbortController().signal),
+      writeImageAtomically(png, target, new AbortController().signal),
+    ]);
+    const fulfilled = results.filter((r) => r.status === 'fulfilled').length;
+    const rejected = results.filter((r) => r.status === 'rejected').length;
+    expect(fulfilled).toBe(1);
+    expect(rejected).toBe(1);
+    const written = await fs.promises.readFile(target);
+    expect(written.equals(png)).toBe(true);
   });
 });
 
