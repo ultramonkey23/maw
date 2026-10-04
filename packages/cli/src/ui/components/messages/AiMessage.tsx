@@ -8,6 +8,7 @@ import type React from 'react';
 import { Text, Box } from 'ink';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { Colors } from '../../colors.js';
+import { getMawPalette } from '../mawPalette.js';
 import { SCREEN_READER_MODEL_PREFIX } from '../../textConstants.js';
 import { ThinkingBlockDisplay } from './ThinkingBlockDisplay.js';
 import type { ThinkingBlock } from '@vybestack/llxprt-code-core';
@@ -60,7 +61,8 @@ export const AiMessage: React.FC<AiMessageProps> = ({
   const resolvedWorkspaceDirectories =
     useResolvedWorkspaceDirectories(workspaceDirectories);
 
-  const prefix = ' ';
+  // A quiet, persistent visual rail separates agent output from boxed user input.
+  const prefix = '| ';
   const prefixWidth = prefix.length;
 
   // #1723: Show thinking blocks in BOTH pending and committed items so thinking
@@ -93,7 +95,7 @@ export const AiMessage: React.FC<AiMessageProps> = ({
       <Box flexDirection="row">
         <Box width={prefixWidth}>
           <Text
-            color={Colors.AccentPurple}
+            color={getMawPalette().bone}
             aria-label={SCREEN_READER_MODEL_PREFIX}
           >
             {prefix}
