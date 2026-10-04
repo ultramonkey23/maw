@@ -74,8 +74,10 @@ describe('terminalProtocolCleanup', () => {
       value: true,
       configurable: true,
     });
-    vi.spyOn(terminalCapabilityManager, 'disableKittyProtocolOnExit')
-      .mockImplementation(() => {});
+    vi.spyOn(
+      terminalCapabilityManager,
+      'disableKittyProtocolOnExit',
+    ).mockImplementation(() => {});
     restoreTerminalProtocolsSync();
     expect(writeSyncMock).toHaveBeenCalledWith(
       process.stdout.fd,

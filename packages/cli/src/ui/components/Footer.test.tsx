@@ -515,14 +515,15 @@ describe('Footer', () => {
         isStandard: true,
         isWide: false,
       });
-      const frame = render(
-        <Footer
-          {...defaultProps}
-          tokensPerMinute={0}
-          throttleWaitTimeMs={0}
-          sessionTokenTotal={0}
-        />,
-      ).lastFrame() ?? '';
+      const frame =
+        render(
+          <Footer
+            {...defaultProps}
+            tokensPerMinute={0}
+            throttleWaitTimeMs={0}
+            sessionTokenTotal={0}
+          />,
+        ).lastFrame() ?? '';
       expect(frame).toContain('Context:');
       expect(frame).not.toContain('TPM:');
       expect(frame).not.toContain('Wait:');
@@ -537,14 +538,15 @@ describe('Footer', () => {
         isStandard: true,
         isWide: false,
       });
-      const frame = render(
-        <Footer
-          {...defaultProps}
-          tokensPerMinute={12}
-          throttleWaitTimeMs={500}
-          sessionTokenTotal={27}
-        />,
-      ).lastFrame() ?? '';
+      const frame =
+        render(
+          <Footer
+            {...defaultProps}
+            tokensPerMinute={12}
+            throttleWaitTimeMs={500}
+            sessionTokenTotal={27}
+          />,
+        ).lastFrame() ?? '';
       expect(frame).toContain('TPM:');
       expect(frame).toContain('Wait:');
       expect(frame).toContain('Tokens: 27');

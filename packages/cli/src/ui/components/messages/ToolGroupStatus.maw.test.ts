@@ -59,9 +59,9 @@ describe('MAW tool-group visual state', () => {
     expect(
       deriveBorderColors([tool(ToolCallStatus.Executing)]).borderColor,
     ).toBe(theme.border.focused);
-    expect(
-      deriveBorderColors([tool(ToolCallStatus.Success)]).borderColor,
-    ).toBe(theme.border.default);
+    expect(deriveBorderColors([tool(ToolCallStatus.Success)]).borderColor).toBe(
+      theme.border.default,
+    );
     expect(
       deriveBorderColors([tool(ToolCallStatus.Canceled)]).borderColor,
     ).toBe(theme.text.secondary);

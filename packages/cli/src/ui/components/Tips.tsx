@@ -23,16 +23,20 @@ export const Tips: React.FC<TipsProps> = ({ memory }) => {
   const maw = getMawPalette();
   return (
     <Box flexDirection="column" paddingLeft={1}>
-      <Text color={maw.ember} bold>FIELD NOTES</Text>
-      <Text color={SemanticColors.text.secondary}>
-        <Text color={maw.iron}>TRACK</Text>  Inspect the cause, not just the symptom.
+      <Text color={maw.ember} bold>
+        FIELD NOTES
       </Text>
       <Text color={SemanticColors.text.secondary}>
-        <Text color={maw.iron}>FORGE</Text>  Change the code. Run the checks.
+        <Text color={maw.iron}>TRACK</Text> Inspect the cause, not just the
+        symptom.
+      </Text>
+      <Text color={SemanticColors.text.secondary}>
+        <Text color={maw.iron}>FORGE</Text> Change the code. Run the checks.
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Text color={SemanticColors.text.secondary}>
-          <Text color={maw.ember}>/help</Text> commands  /  <Text color={maw.ember}>/model</Text> select a model
+          <Text color={maw.ember}>/help</Text> commands /{' '}
+          <Text color={maw.ember}>/model</Text> select a model
         </Text>
         <Text color={SemanticColors.text.secondary}>
           {hasWorkspaceInstructions

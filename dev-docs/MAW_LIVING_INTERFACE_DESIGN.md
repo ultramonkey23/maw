@@ -13,7 +13,7 @@ Routing decision for the Lab-side execution record: `rd_1791084781842_9c833600`.
   honest finalization route (`labctl finish`). Its "client repo edits" caution is recorded
   as tension: Cody's mission explicitly authorizes MAW (client repo) edits.
 - `labctl challenge` (Capability Challenge Engine) — PASS, proposed "run visual proof
-  capture & diff tests on cockpit" (score 0.713). Contribution: visual *proof* over visual
+  capture & diff tests on cockpit" (score 0.713). Contribution: visual _proof_ over visual
   claims — adopted as the snapshot/frame-assertion discipline below, not the literal cockpit
   target (that surface is Lab-internal, not MAW).
 - `labctl four-mind` (Four-Mind OS) — Cyber Cody creative frontier supplied the
@@ -23,7 +23,7 @@ Routing decision for the Lab-side execution record: `rd_1791084781842_9c833600`.
   supplied the critique lens (structural health / crystallization / decision confidence /
   focus). Brain reported style_coherence_weight 0.12 — style must obey coherence.
 - `labctl cockpit-command-glass` (Command Glass style DNA) — the Lab's own interface
-  vocabulary: each surface carries a *named motion/energy motif* (SOFT_PULSE, METALLIC_SNAP,
+  vocabulary: each surface carries a _named motion/energy motif_ (SOFT_PULSE, METALLIC_SNAP,
   ERRATIC_TWITCH, STEADY_THROB...) plus a state word and one terse flavor line. Energy is
   named and state-bound, never decorative. Adopted as the activity-motif principle.
 - `labctl candidate-compare` — anchored the mission as DIRECT_INTENT (composite 1.0,
@@ -44,12 +44,12 @@ Harness: `tmp/bench/markdownStream.bench.tsx` (gitignored), ink-testing-library 
 `MarkdownDisplay`, 100-col terminal. Numbers are wall-clock of `render`/`rerender`
 including harness overhead; they are comparative evidence, not absolute CLI latency.
 
-| scenario | mean | p95 | max | total |
-|---|---|---|---|---|
-| full render, 3.3KB doc | 35.7ms | 55.9 | 55.9 | 178ms (5 runs) |
-| full render, 30KB doc | 258ms | 290 | 290 | 1.29s (5 runs) |
-| streaming, 150 chunk appends from 3.3KB→18KB | 39.5ms | 66.6 | 134 | 5.93s |
-| streaming, 150 chunk appends from 30KB→45KB | 195ms | 262 | 332 | 29.3s |
+| scenario                                     | mean   | p95  | max  | total          |
+| -------------------------------------------- | ------ | ---- | ---- | -------------- |
+| full render, 3.3KB doc                       | 35.7ms | 55.9 | 55.9 | 178ms (5 runs) |
+| full render, 30KB doc                        | 258ms  | 290  | 290  | 1.29s (5 runs) |
+| streaming, 150 chunk appends from 3.3KB→18KB | 39.5ms | 66.6 | 134  | 5.93s          |
+| streaming, 150 chunk appends from 30KB→45KB  | 195ms  | 262  | 332  | 29.3s          |
 
 Finding: streaming re-render cost grows linearly with the whole document (≈35ms at 3KB →
 ≈195ms at 30KB per appended chunk). During a long response, every token arrival costs a
@@ -60,26 +60,29 @@ rebuilds regexes per line/render.
 ## Three competing creative directions
 
 ### D1 — IRON LEDGER (severity-first structured panels)
+
 Every transcript element becomes a ledger row with a hard left spine, fixed status column,
 and ruled title bars (`─ agent · model ───`). Errors invert. Idle = zero motion. Manga
 panel-gutter influence: heavy rules, hard cuts between states.
 Strengths: instant severity scanning; strong silhouette; deterministic.
-Critique (Melon lens): fails *focus* — chrome rows waste narrow terminals, box re-render
+Critique (Melon lens): fails _focus_ — chrome rows waste narrow terminals, box re-render
 cost competes with the speed constraint, and ASCII fallback loses the identity. Risks the
 "generic dashboard" failure mode the mission forbids.
 
 ### D2 — MYCELIAL BREATH (adaptive organism)
+
 The interface breathes with work: dense during tool bursts, expansive during reading;
-named motion motifs (SOFT_PULSE = streaming, METALLIC_SNAP = completed tool, ERRATIC_TWITCH
+named motion motifs (SOFT*PULSE = streaming, METALLIC_SNAP = completed tool, ERRATIC_TWITCH
 = failure) animate only on real state transitions; "growth rings" thicken the response rail
 as a turn accumulates; frequently used commands strengthen in suggestions (Physarum).
 Strengths: genuinely alive, state-driven, memorable; uses the Lab's own style DNA.
 Critique: time-driven motion violates the flicker/perf constraints; adaptive density causes
 surprising layout shifts mid-read; high complexity → hard to validate deterministically.
-What survives: the named-motif vocabulary bound to *real* state, and state-driven density
+What survives: the named-motif vocabulary bound to \_real* state, and state-driven density
 in the one place where it never surprises (transient loading area only).
 
 ### D3 — SIGNAL FLOW (typographic transcript spine)
+
 Strip boxes from prose. A typographic document: continuous agent rail, hanging indents,
 markdown as the hero (hierarchy markers, blockquotes as dim marginalia, horizontal rules as
 real rules), tools as terse one-liners. Streaming caret marks live continuation.
@@ -95,7 +98,7 @@ D1's severity-first tool legibility. Principles:
 
 1. **Form from evidence** (vault digest 003): every glyph/label describes real state
    (RESPONSE / SHELL / APPROVAL, tool status, pending truncation). No decorative motion.
-2. **One continuous spine**: the bone `| ` response rail runs through *every* chunk of a
+2. **One continuous spine**: the bone `| ` response rail runs through _every_ chunk of a
    long response (constraint inversion of "continuation chunks drop the rail"), so a long
    mission reads as one organism. Shared constant, width derived from the rail itself.
 3. **Typographic hierarchy over chrome**: markdown carries the visual energy (spine
@@ -103,7 +106,7 @@ D1's severity-first tool legibility. Principles:
 4. **Severity outranks category** in tool groups (existing border precedence), with a
    compact status tally in the group identity line for scanning long transcripts.
 5. **Speed as identity**: streaming cost must become ~O(changed tail), not O(whole message),
-   measured before/after. Faster feedback *is* the aesthetic.
+   measured before/after. Faster feedback _is_ the aesthetic.
 
 ## Implementation results (Waves B + C)
 
@@ -138,12 +141,12 @@ chunk through `wrapWithProviders` + ink-testing-library).
 
 ### Measured (same machine, same harness)
 
-| scenario | before mean | after mean | before total | after total |
-| --- | --- | --- | --- | --- |
-| fullRender 3.3KB | 35.7ms | 43.3ms | 178ms | 216ms |
-| fullRender 30KB | 258ms | 252ms | 1290ms | 1259ms |
-| streaming 3.3KB -> 18KB (150 updates) | 39.5ms | 37.3ms | 5927ms | 5588ms |
-| streaming 30KB -> 45KB (150 updates) | 195ms | 183ms | 29300ms | 27431ms |
+| scenario                              | before mean | after mean | before total | after total |
+| ------------------------------------- | ----------- | ---------- | ------------ | ----------- |
+| fullRender 3.3KB                      | 35.7ms      | 43.3ms     | 178ms        | 216ms       |
+| fullRender 30KB                       | 258ms       | 252ms      | 1290ms       | 1259ms      |
+| streaming 3.3KB -> 18KB (150 updates) | 39.5ms      | 37.3ms     | 5927ms       | 5588ms      |
+| streaming 30KB -> 45KB (150 updates)  | 195ms       | 183ms      | 29300ms      | 27431ms     |
 
 Parse-work probe (`tmp/bench/parseProbe.tsx`, 20 updates on a ~1,150-line
 document): **60 lines re-parsed vs 22,940 for naive full re-parse** — streaming
@@ -158,7 +161,7 @@ live region through the existing segment-committal Static machinery
 which commits stable text as static history items while it streams. The parse
 cache removes the constant whole-document re-parse that remained inside that
 live region. The first fullRender row shows a small cold-cache cost (+7.6ms at
-   3.3KB) from cache bookkeeping; steady-state streaming wins outweigh it.
+3.3KB) from cache bookkeeping; steady-state streaming wins outweigh it.
 
 ## Wave B/C change list (implemented)
 
@@ -191,13 +194,12 @@ future work. Nothing here was retrofitted into the shipped wave.
   re-parsed). Production bounds the live region via the Static/pending-buffer
   machinery already upstream.
 - Input path: dual-path render (immediate direct paint of the focused composer
-  + debounced full layout) is the standard fix for keystroke latency under
-  heavy content. MAW's composer (`inputPromptRender`) already renders only the
-  visible slice; if typing latency ever regresses under long sessions, the
-  fast-path paint is the proven next lever — not yet measured as a problem, so
-  not implemented.
+  - debounced full layout) is the standard fix for keystroke latency under
+    heavy content. MAW's composer (`inputPromptRender`) already renders only the
+    visible slice; if typing latency ever regresses under long sessions, the
+    fast-path paint is the proven next lever — not yet measured as a problem, so
+    not implemented.
 - Paste handling: bracketed-paste + raw-burst classification (rapid-keystroke
   detection with Enter suppression windows) is how other TUIs prevent multi-line
   pastes submitting mid-paste. MAW inherits upstream paste semantics; this is a
   named, unmeasured risk (see final report), not a silent assumption of safety.
-
