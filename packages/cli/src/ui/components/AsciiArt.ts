@@ -4,17 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// Narrow terminals get a small, ASCII-only insignia. Both sizes inherit the
-// user's existing Ink theme; MAW branding never changes terminal protocols.
-export const shortAsciiLogo = String.raw`
-     /\_/\
-    < MAW >
-     \_V_/
-`;
-export const longAsciiLogo = String.raw`
-   __  __      _      __        __
-  |  \/  |    / \     \ \      / /
-  | |\/| |   / _ \     \ \ /\ / /
-  |_|  |_|  /_/ \_\     \_/\_/
-             MAW // LLXPRT CODE
-`;
+// MAW's mark is a pair of uneven, interlocking jaws rather than a generic
+// boxed wordmark. These are deliberately ASCII-only for reliable terminal
+// widths and readable shape at reduced font sizes.
+export const shortAsciiLogo = String.raw`  /\_ MAW _/\
+ <__\/___\/__>`;
+
+export const longAsciiLogo = String.raw`       /\/\__                     __/\/\
+    __/  /\  \__     MAW     __/  /\  \__
+   <____/  \___/\/\____/\/\___/  \____>`;
