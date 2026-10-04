@@ -31,6 +31,13 @@ export const DISABLE_FOCUS_TRACKING = '\x1b[?1004l';
  */
 export const DISABLE_EXTRA_MOUSE_MODES_SEQUENCE = '\x1b[?1003l\x1b[?1000l';
 
+/**
+ * Disable xterm's modifyOtherKeys extension (CSI > 4 ; 0 m). MAW can enable
+ * mode 2 during terminal capability negotiation; this reset must be emitted
+ * synchronously before returning control to shells such as Windows PowerShell.
+ */
+export const DISABLE_MODIFY_OTHER_KEYS = '\x1b[>4;0m';
+
 /** Show cursor */
 export const SHOW_CURSOR = '\x1b[?25h';
 
