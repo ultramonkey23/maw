@@ -62,7 +62,7 @@ function createUnreadableEnvelopeRead(
     if (target === filePath) {
       throw readFailure;
     }
-    return originalReadFile(target, options);
+    return originalReadFile(target, options ?? null);
   }) as typeof fs.readFile;
 }
 

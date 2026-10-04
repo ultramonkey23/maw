@@ -47,21 +47,26 @@ describe('provider alias defaults (#1543, #2056)', () => {
 
   it('MAW source launcher must name a registered provider with a matching model', () => {
     const packageJson: unknown = JSON.parse(
-      readFileSync(new URL('../../../../package.json', import.meta.url), 'utf8'),
+      readFileSync(
+        new URL('../../../../package.json', import.meta.url),
+        'utf8',
+      ),
     );
     if (
       typeof packageJson !== 'object' ||
       packageJson === null ||
-      !('scripts' in packageJson) ||
-      typeof packageJson.scripts !== 'object' ||
-      packageJson.scripts === null ||
-      !('start:maw' in packageJson.scripts) ||
-      typeof packageJson.scripts['start:maw'] !== 'string'
+      !('scripts' in packageJson)
     ) {
       throw new Error('MAW source launch script is missing');
     }
-
-    const startup = packageJson.scripts['start:maw'];
+    const scripts = packageJson.scripts;
+    if (typeof scripts !== 'object' || scripts === null) {
+      throw new Error('MAW source launch script is missing');
+    }
+    if (!('start:maw' in scripts) || typeof scripts['start:maw'] !== 'string') {
+      throw new Error('MAW source launch script is missing');
+    }
+    const startup = scripts['start:maw'];
     const provider = startup.match(/--provider\s+(\S+)/)?.[1];
     const model = startup.match(/--model\s+(\S+)/)?.[1];
     expect(provider).toBeDefined();
@@ -133,4 +138,3 @@ describe('provider alias defaults (#1543, #2056)', () => {
     });
   });
 });
-
