@@ -8,6 +8,7 @@ import * as fs from 'node:fs';
 import { DISABLE_MOUSE_EVENTS } from './mouse.js';
 import {
   DISABLE_BRACKETED_PASTE,
+  DISABLE_MODIFY_OTHER_KEYS,
   DISABLE_FOCUS_TRACKING,
   DISABLE_EXTRA_MOUSE_MODES_SEQUENCE,
   SHOW_CURSOR,
@@ -15,6 +16,7 @@ import {
 import { terminalCapabilityManager } from './terminalCapabilityManager.js';
 
 export const TERMINAL_PROTOCOL_RESTORE_SEQUENCES =
+  DISABLE_MODIFY_OTHER_KEYS +
   DISABLE_MOUSE_EVENTS +
   DISABLE_EXTRA_MOUSE_MODES_SEQUENCE +
   DISABLE_BRACKETED_PASTE +
