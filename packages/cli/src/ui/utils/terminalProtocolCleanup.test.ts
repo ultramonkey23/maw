@@ -66,6 +66,23 @@ describe('terminalProtocolCleanup', () => {
     );
   });
 
+  it('resets xterm modifyOtherKeys in the synchronous exit payload', () => {
+    // Without this reset, keyboard sequences can outlive MAW's /quit and
+    // PowerShell can receive encoded numeric key events instead of Enter.
+    expect(TERMINAL_PROTOCOL_RESTORE_SEQUENCES).toContain('\x1b[>4;0m');
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+    vi.spyOn(terminalCapabilityManager, 'disableKittyProtocolOnExit')
+      .mockImplementation(() => {});
+    restoreTerminalProtocolsSync();
+    expect(writeSyncMock).toHaveBeenCalledWith(
+      process.stdout.fd,
+      expect.stringContaining('\x1b[>4;0m'),
+    );
+  });
+
   it('does nothing when stdout is not a TTY', () => {
     Object.defineProperty(process.stdout, 'isTTY', {
       value: false,
