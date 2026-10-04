@@ -12,8 +12,8 @@ import { getAsciiArtWidth } from '../utils/textUtils.js';
 import { ThemedGradient } from './ThemedGradient.js';
 
 interface HeaderProps {
-  customAsciiArt?: string; // For user-defined ASCII art
-  terminalWidth: number; // For responsive logo
+  customAsciiArt?: string; // Preserve custom user art exactly.
+  terminalWidth: number;
   version: string;
   nightly: boolean;
 }
@@ -24,37 +24,39 @@ export const Header: React.FC<HeaderProps> = ({
   version,
   nightly,
 }) => {
-  let displayTitle;
-  const widthOfLongLogo = getAsciiArtWidth(longAsciiLogo);
-
-  if (customAsciiArt) {
-    displayTitle = customAsciiArt;
-  } else {
-    displayTitle =
-      terminalWidth >= widthOfLongLogo ? longAsciiLogo : shortAsciiLogo;
-  }
-
+  const isCustom = Boolean(customAsciiArt);
+  const isWide = terminalWidth >= getAsciiArtWidth(longAsciiLogo) + 2;
+  const displayTitle = customAsciiArt
+    ? customAsciiArt
+    : isWide
+      ? longAsciiLogo
+      : terminalWidth >= getAsciiArtWidth(shortAsciiLogo)
+        ? shortAsciiLogo
+        : 'MAW';
   const artWidth = getAsciiArtWidth(displayTitle);
 
   return (
-    <Box
-      alignItems="flex-start"
-      width={artWidth}
-      flexShrink={0}
-      flexDirection="column"
-    >
-      {Colors.GradientColors ? (
+    <Box alignItems="flex-start" width={artWidth} flexShrink={0} flexDirection="column">
+      {isCustom && Colors.GradientColors ? (
         <ThemedGradient colors={Colors.GradientColors}>
           <Text color={Colors.Foreground}>{displayTitle}</Text>
         </ThemedGradient>
       ) : (
-        <Text color={SemanticColors.text.accent}>{displayTitle}</Text>
+        <Text bold={!isCustom} color={isCustom ? SemanticColors.text.accent : Colors.AccentRed}>
+          {displayTitle}
+        </Text>
+      )}
+      {!isCustom && (
+        <Box paddingLeft={1} flexDirection="row">
+          <Text bold color={Colors.AccentYellow}>LIVING CODE</Text>
+          {isWide && (
+            <Text color={SemanticColors.text.secondary}> // TRACE / FORGE / PROVE</Text>
+          )}
+        </Box>
       )}
       {nightly && (
         <Box width="100%" flexDirection="row" justifyContent="flex-end">
-          <ThemedGradient colors={Colors.GradientColors}>
-            <Text color={Colors.Foreground}>v{version}</Text>
-          </ThemedGradient>
+          <Text color={SemanticColors.text.secondary}>v{version}</Text>
         </Box>
       )}
     </Box>
