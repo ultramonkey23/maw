@@ -67,7 +67,7 @@ else
   mkdir -p "$HOME/bin"
   cat > "$HOME/bin/maw" <<'SH'
 #!/bin/sh
-exec "$HOME/repos/maw/scripts/maw-termux.sh" "$@"
+exec sh "$HOME/repos/maw/scripts/maw-termux.sh" "$@"
 SH
   chmod +x "$HOME/bin/maw"
 fi
