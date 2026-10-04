@@ -271,8 +271,12 @@ describe('<LoadingIndicator />', () => {
     );
 
     const output = lastFrame();
-    // The text should be present (truncated by Ink's wrap="truncate-end")
-    expect(output).toContain('This is an extremely long loading phrase');
+    // A separate MAW state label now uses some columns. The text should
+    // retain a useful prefix and the cancel timer, not require an exact
+    // number of characters before Ink's width-aware ellipsis.
+    expect(output).toContain('This is an extremely long loading');
+    expect(output).toContain('(esc to cancel, 5s)');
+    expect(output).toContain('…');
   });
 
   it('should prioritize action-required phrase over thought.subject when WaitingForConfirmation', () => {
@@ -312,6 +316,7 @@ describe('<LoadingIndicator />', () => {
     // key parts of the shell-focus hint must be present.
     expect(output).toContain('Interactive shell');
     expect(output).toContain('tab to focus shell');
+    expect(output).not.toContain('esc to cancel');
     expect(output).not.toContain('Some thought subject');
   });
 });
