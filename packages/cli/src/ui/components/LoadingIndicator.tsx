@@ -50,14 +50,18 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   const isActionRequired =
     streamingState === StreamingState.WaitingForConfirmation ||
     isShellFocusHint;
-  const primaryText = isActionRequired
-    ? currentLoadingPhrase
-    : firstNonEmptyString(thought?.subject, currentLoadingPhrase);
+  // Prioritize the complete keyboard instruction over a decorative timer.
+  // The full canonical hint is longer than the available width on narrower
+  // terminals, so use a compact equivalent only for this exact shell state.
+  const primaryText = isShellFocusHint
+    ? 'Interactive shell: press tab to focus shell'
+    : isActionRequired
+      ? currentLoadingPhrase
+      : firstNonEmptyString(thought?.subject, currentLoadingPhrase);
 
-  const timerText =
-    streamingState === StreamingState.WaitingForConfirmation
-      ? ''
-      : ` (esc to cancel, ${formatTimerText(elapsedTime)})`;
+  const timerText = isActionRequired
+    ? ''
+    : ` (esc to cancel, ${formatTimerText(elapsedTime)})`;
 
   const lineText = primaryText
     ? `${primaryText}${timerText}`
