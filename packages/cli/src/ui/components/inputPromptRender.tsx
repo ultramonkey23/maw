@@ -5,6 +5,7 @@
  */
 
 import { Colors } from '../colors.js';
+import { getMawPalette } from './mawPalette.js';
 import type { UseCommandCompletionReturn } from '../hooks/useCommandCompletion.js';
 import { theme } from '../semantic-colors.js';
 import { SCREEN_READER_USER_PREFIX } from '../textConstants.js';
@@ -377,6 +378,18 @@ const renderInputLines = (
     .concat(renderGhostLines(additionalLines, inputWidth));
 };
 
+/**
+ * Shell mode must stay unmistakable; unfocused prompts should recede instead
+ * of looking actionable. MAW's normal input uses its theme-aware iron accent.
+ */
+export function getMawPromptBorderColor(
+  shellModeActive: boolean,
+  focused: boolean,
+): string {
+  if (shellModeActive) return theme.status.warning;
+  return focused ? getMawPalette().iron : theme.border.default;
+}
+
 export const PromptInputBox: React.FC<PromptInputBoxProps> = ({
   buffer,
   placeholder,
@@ -390,7 +403,7 @@ export const PromptInputBox: React.FC<PromptInputBoxProps> = ({
 }) => (
   <Box
     borderStyle={getBorderStyle('round')}
-    borderColor={shellModeActive ? theme.status.warning : theme.border.focused}
+    borderColor={getMawPromptBorderColor(shellModeActive, focus)}
     paddingX={1}
   >
     {renderPromptPrefix(shellModeActive, reverseSearchActive)}
