@@ -12,6 +12,7 @@ import { StreamingState } from '../../types.js';
 import { renderWithProviders } from '../../../__tests__/render.js';
 import type { ThinkingBlock } from '@vybestack/llxprt-code-core';
 import { Colors } from '../../colors.js';
+import stripAnsi from 'strip-ansi';
 
 let mockGetEphemeralSetting = vi.fn().mockReturnValue(true);
 
@@ -85,8 +86,10 @@ describe('<AiMessage />', () => {
         <AiMessage {...baseProps} model="active-model" />,
         { turn: { streamingState: StreamingState.Idle } },
       );
-      const frame = lastFrame() ?? '';
-      expect(frame).toContain('| MockMarkdown:Hello, world!');
+      // Rendered Ink frames contain ANSI color codes *between* the rail and
+      // the markdown body; compare visible text, not encoded color bytes.
+      const frame = stripAnsi(lastFrame() ?? '');
+      expect(frame).toContain('| MockMarkdown:Hello, world!:complete');
       expect(frame).toContain('active-model');
     });
   });
