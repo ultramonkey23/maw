@@ -13,7 +13,8 @@
   "bin": {
     "llxprt": "bin/llxprt.mjs",
     "maw": "bin/maw.mjs",
-    "maw-lab": "bin/maw-lab.mjs"
+    "maw-lab": "bin/maw-lab.mjs",
+    "lab-maw": "bin/maw-lab.mjs"
   },
   "scripts": {
     "build": "bun ../../scripts/build_package.ts && bun ../../scripts/chmod_executable.ts dist/index.js && bun ./scripts/dist-test-artifact-guard.ts",
