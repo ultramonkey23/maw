@@ -5,6 +5,9 @@
  */
 
 import { afterEach, describe, expect, it } from 'bun:test';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { Settings } from './settings.js';
 import type { ContextResolutionResult } from './interactiveContext.js';
 import { resolveMcpServers } from './mcpServerConfig.js';
@@ -30,6 +33,30 @@ describe('MAW Lab attachment boundary', () => {
     process.env['MAW_LAB_MODE'] = 'off';
     const { mcpServers } = resolveMcpServers(settings, context, undefined);
     expect(Object.keys(mcpServers)).toStrictEqual(['other']);
+  });
+
+  it('attaches the complete canonical Lab MCP surface with no client-side seven-tool cap', () => {
+    const root = mkdtempSync(join(tmpdir(), 'maw-lab-tools-'));
+    try {
+      mkdirSync(join(root, 'tools'));
+      for (const path of ['AGENTS.md', 'labctl', 'tools/lab_mcp_server.py']) {
+        writeFileSync(join(root, path), '');
+      }
+      process.env['MAW_LAB_MODE'] = 'on';
+      process.env['MAW_LAB_ROOT'] = root;
+      const { mcpServers } = resolveMcpServers(settings, context, undefined);
+      expect(Object.keys(mcpServers)).toStrictEqual(['lab', 'other']);
+      const lab = mcpServers['lab'];
+      expect(lab?.command).toBe('python');
+      expect(lab?.cwd).toBe(root);
+      expect(lab?.args).toStrictEqual([join(root, 'tools', 'lab_mcp_server.py')]);
+      expect(lab?.trust).toBe(true);
+      expect(lab?.includeTools).toBeUndefined();
+      expect(lab?.excludeTools).toBeUndefined();
+      expect(lab?.url).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('does not invent a Lab connection when the requested root is absent', () => {
