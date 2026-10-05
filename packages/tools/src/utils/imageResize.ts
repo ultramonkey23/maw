@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import sharp, { type Metadata, type Sharp } from 'sharp';
+import type { Metadata, Sharp } from 'sharp';
 import { readSettingFlatOrNested } from './flatOrNestedSetting.js';
 
 export interface ImageResizePolicy {
@@ -206,6 +206,12 @@ export async function resizeImageIfNeeded(
   }
 
   try {
+    // Some supported host/runtime combinations (notably Android/Termux) do
+    // not have a loadable sharp native addon. A normal CLI or text-only tool
+    // session must not crash during module discovery because image resizing
+    // happens to be unavailable. Keep the native dependency at the actual
+    // resize boundary, after the no-policy fast path above.
+    const { default: sharp } = await import('sharp');
     const metadata = await sharp(content, {
       animated: true,
       failOn: 'warning',
