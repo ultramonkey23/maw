@@ -29,6 +29,22 @@ describe('MAW responsive header', () => {
     expect(frame).not.toContain('MONARCH / FORGE / PROVE');
   });
 
+  it('does not let the wide signature wrap inside a narrow terminal', () => {
+    const compact = render(
+      <Header terminalWidth={36} version="1.0" nightly={false} />,
+    ).lastFrame() ?? '';
+    expect(compact).toContain('MAW');
+    expect(compact).toContain('EVOLVE CODE');
+    expect(compact).not.toContain('MAW // SAVAGE CROWN');
+    expect(compact).not.toContain('MONARCH / FORGE / PROVE');
+
+    const wide = render(
+      <Header terminalWidth={64} version="1.0" nightly={false} />,
+    ).lastFrame() ?? '';
+    expect(wide).toContain('MAW // SAVAGE CROWN');
+    expect(wide).toContain('MONARCH / FORGE / PROVE');
+  });
+
   it('keeps user-defined ASCII art instead of stamping MAW over it', () => {
     const frame =
       render(
