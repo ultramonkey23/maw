@@ -17,16 +17,6 @@ import type { ContextResolutionResult } from './interactiveContext.js';
 
 const logger = new DebugLogger('llxprt:config:mcpServerConfig');
 
-const LAB_TOOLS = [
-  'status',
-  'workspace',
-  'capability_manifest',
-  'partner_identity',
-  'project_entry',
-  'execution_proof',
-  'llxprt_chassis',
-];
-
 function findLabRoot(): string | undefined {
   const explicit = process.env['MAW_LAB_ROOT'];
   const candidates: string[] = explicit
@@ -72,8 +62,10 @@ function applyMawLabMode(
       cwd: root,
       env: { PYTHONIOENCODING: 'utf-8' },
       timeout: 600000,
-      trust: false,
-      includeTools: LAB_TOOLS,
+      // This is an explicit private Lab attachment, not a public endpoint.
+      // Workspace trust and Lab-owned effect authority remain separate.
+      // No includeTools filter: let MCP discover the complete canonical registry.
+      trust: true,
     },
   };
 }
