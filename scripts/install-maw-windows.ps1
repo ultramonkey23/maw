@@ -19,10 +19,6 @@ foreach ($entry in $launchers.GetEnumerator()) {
     throw "Missing $($entry.Name) launcher entry in $cliBin"
   }
 }
-if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'node_modules\\bun\\bin\\bun.exe'))) {
-  throw 'Run npm ci in the MAW checkout before installing launchers.'
-}
-
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 
 foreach ($entry in $launchers.GetEnumerator()) {
