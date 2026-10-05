@@ -41,7 +41,7 @@ install_launcher() {
     printf '%s\n' '#!/bin/sh'
     printf '# MAW managed launcher; source: %s\n' "$repo_root"
     if [ "$mode" = 'lab' ]; then
-      printf 'MAW_LAB_MODE=on exec sh "%s" "$@"\n' "$source_launcher"
+      printf 'MAW_LAB_MODE=on LLXPRT_SANDBOX=false exec sh "%s" "$@"\n' "$source_launcher"
     else
       printf 'exec sh "%s" "$@"\n' "$source_launcher"
     fi
