@@ -6,7 +6,6 @@
 
 import fs from 'node:fs';
 
-import sharp from 'sharp';
 import { decodeBmpToRawRgb } from './bmpDecoder.js';
 import { debugLogger } from './debugLogger.js';
 import { resizeImageIfNeeded, type ImageResizePolicy } from './imageResize.js';
@@ -31,6 +30,9 @@ async function encodeRawRgbAsPng(image: {
   height: number;
   data: Buffer;
 }): Promise<Buffer> {
+  // BMP decoding uses the native encoder only when PNG conversion is needed.
+  // An ordinary text/code session must not load the addon at startup.
+  const { default: sharp } = await import('sharp');
   return sharp(image.data, {
     raw: { width: image.width, height: image.height, channels: 3 },
   })
@@ -67,6 +69,7 @@ export async function transcodeImageToSupportedFormat(
       }
       return await encodeRawRgbAsPng(raw);
     }
+    const { default: sharp } = await import('sharp');
     return await sharp(content, { failOn: 'warning' }).png().toBuffer();
   } catch {
     return null;
