@@ -22,17 +22,21 @@ export const Tips: React.FC<TipsProps> = ({ memory }) => {
   const hasWorkspaceInstructions = memory.getLlxprtMdFileCount() > 0;
   const maw = getMawPalette();
   return (
-    <Box flexDirection="column" paddingLeft={1}>
+    <Box flexDirection="column" paddingLeft={0}>
       <Text color={maw.ember} bold>
-        THE HUNT
+        {'[ THE HUNT // FIELD NOTES ]'}
       </Text>
-      <Text color={SemanticColors.text.secondary}>
-        <Text color={maw.spectral}>TRACK</Text> Inspect the cause, not just the
-        symptom.
-      </Text>
-      <Text color={SemanticColors.text.secondary}>
-        <Text color={maw.iron}>FORGE</Text> Change the code. Run the checks.
-      </Text>
+      <Box flexDirection="column" paddingLeft={1}>
+        <Text color={SemanticColors.text.secondary}>
+          <Text bold color={maw.spectral}>TRACK / </Text>Find the real cause.
+        </Text>
+        <Text color={SemanticColors.text.secondary}>
+          <Text bold color={maw.iron}>FORGE / </Text>Make the smallest correct change.
+        </Text>
+        <Text color={SemanticColors.text.secondary}>
+          <Text bold color={maw.ember}>PROVE / </Text>Observe the result. Keep the learning.
+        </Text>
+      </Box>
       <Box marginTop={1} flexDirection="column">
         <Text color={SemanticColors.text.secondary}>
           <Text color={maw.ember}>/help</Text> commands /{' '}
