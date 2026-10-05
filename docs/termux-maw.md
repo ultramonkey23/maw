@@ -91,52 +91,39 @@ by globally reinstalling LLxprt, replacing `ultralab`, modifying Termux's
 Node installation, or copying binaries from a generic Linux ARM64 build.
 Some native dependencies may still require Android-specific fixes.
 
-After those checks succeed, install a _separate_ launch shortcut. First ensure
-`$HOME/bin/maw` does not already exist (including as a broken symlink):
+After those checks succeed, install or refresh the user-level launchers:
 
 ```sh
-if [ -e "$HOME/bin/maw" ] || [ -L "$HOME/bin/maw" ]; then
-  echo "Existing maw launcher: inspect it; no overwrite performed"
-else
-  mkdir -p "$HOME/bin"
-  cat > "$HOME/bin/maw" <<'SH'
-#!/bin/sh
-exec sh "$HOME/repos/maw/scripts/maw-termux.sh" "$@"
-SH
-  chmod +x "$HOME/bin/maw"
-fi
+cd "$HOME/repos/maw"
+sh scripts/install-maw-termux-launchers.sh
 ```
 
-`$HOME/bin` must already be on `PATH` (as it is for the reported
-`ultralab` launcher), otherwise call `"$HOME/bin/maw"` explicitly. This
-shortcut is not a symlink; it executes the repository script and leaves the
-current working directory intact.
+The installer creates/updates `$HOME/bin/maw`, `$HOME/bin/maw-lab`, and
+`$HOME/bin/lab-maw`. The two Lab names are exact aliases. It only overwrites
+launchers it recognizes as MAW-managed (including the older documented MAW
+shortcut shape) and refuses to replace unrelated commands.
 
-Launch from the existing Lab root:
+`$HOME/bin` must be on `PATH` (as it is for the reported `ultralab`
+launcher). All three shortcuts execute the repository launcher by absolute path
+without changing the caller's working directory.
+
+That means these are valid and keep the selected directory as MAW's workspace:
 
 ```sh
 cd "$HOME"
-maw
+lab-maw
+
+cd "$HOME/repos/some-other-project"
+lab-maw
 ```
 
-By default this uses your normal provider/profile configuration; passed CLI
-arguments are forwarded. To select the previous preference explicitly, use
-`maw --provider OpenRouter --model xiaomi/mimo-v2.6-pro`. Configure keys via
-the CLI's supported authentication flow rather than placing secrets in launch
-scripts. MAW and LLxprt may reference common per-user configuration stores:
-check the effective provider, model and credential scope before changing them.
+`maw-lab` is identical to `lab-maw`. Lab-attached mode explicitly exports
+`LLXPRT_SANDBOX=false`; the Lab remains the execution authority instead of
+adding an LLxprt container/seatbelt sandbox around the workspace.
 
-For optional Lab attachment, create a separate `$HOME/bin/maw-lab` shortcut
-only after checking that path is unused. Its script body is:
-
-```sh
-#!/bin/sh
-MAW_LAB_MODE=on exec sh "$HOME/repos/maw/scripts/maw-termux.sh" "$@"
-```
-
-The launcher finds the Lab at Termux `$HOME` using its existing markers and
-starts the Lab MCP server with an absolute path. `/mcp` shows actual connection
-health. Standalone `maw` omits Lab MCP even from the Lab home directory.
+By default standalone `maw` uses your normal provider/profile configuration;
+passed CLI arguments are forwarded. Configure keys through the CLI's supported
+authentication flow rather than placing secrets in launch scripts.
 
 ## Diagnostic/rollback
 
@@ -148,9 +135,8 @@ The launcher validates the source path, Termux/ARM64, Node and Bun runtime
 without generating files or installing anything. Its output gives the resolved
 Bun executable, source root and **unchanged** caller cwd.
 
-If running MAW fails, use the existing `ultralab` command as before. Remove
-only the new `$HOME/bin/maw` shortcut **after verifying its contents** if you
-want to stop using it. Do not delete any Lab worktrees, `$HOME/labctl`,
+If running MAW fails, use the existing `ultralab` command as before. Remove only the MAW-managed shortcuts you no longer want **after verifying their
+contents** if you want to stop using them. Do not delete any Lab worktrees, `$HOME/labctl`,
 `$HOME/AGENTS.md`, or existing Ultralab installation.
 
 ## Android compatibility still to verify
