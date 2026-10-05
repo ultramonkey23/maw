@@ -54,8 +54,8 @@
   "scripts": {
     "prestart": "bun run generate",
     "start": "bun --preload ./scripts/dev-env.ts packages/cli/index.ts",
-    "start:maw": "bun run generate && cross-env MAW_LAB_MODE=off bun --preload ./scripts/dev-env.ts packages/cli/index.ts",
-    "start:maw-lab": "bun run generate && cross-env MAW_LAB_MODE=on bun --preload ./scripts/dev-env.ts packages/cli/index.ts",
+    "start:maw": "bun run generate && cross-env MAW_LAB_MODE=off LLXPRT_DEFAULT_PROVIDER=OpenRouter bun --preload ./scripts/dev-env.ts packages/cli/index.ts",
+    "start:maw-lab": "bun run generate && cross-env MAW_LAB_MODE=on LLXPRT_DEFAULT_PROVIDER=OpenRouter LLXPRT_SANDBOX=false bun --preload ./scripts/dev-env.ts packages/cli/index.ts",
     "start:maw-mimo": "bun run generate && cross-env MAW_LAB_MODE=off bun --preload ./scripts/dev-env.ts packages/cli/index.ts --provider OpenRouter --model xiaomi/mimo-v2.6-pro",
     "start:a2a-server": "CODER_AGENT_PORT=41242 npm run start --workspace @vybestack/llxprt-code-a2a-server",
     "debug": "cross-env DEBUG=1 bun --inspect-brk scripts/start.ts",

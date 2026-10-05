@@ -92,6 +92,15 @@ case "${MAW_LAB_MODE:-off}" in
   *) MAW_LAB_MODE=off ;;
 esac
 export MAW_LAB_MODE
+
+# Preserve MAW's original launch preference without turning it into a lock.
+# OpenRouter currently defaults to xiaomi/mimo-v2.6-pro; explicit CLI/profile
+# choices keep their normal higher precedence.
+if [ -z "${LLXPRT_DEFAULT_PROVIDER:-}" ]; then
+  LLXPRT_DEFAULT_PROVIDER=OpenRouter
+fi
+export LLXPRT_DEFAULT_PROVIDER
+
 exec "$bun_path" --preload "$repo_root/scripts/dev-env.ts" \
   "$repo_root/packages/cli/index.ts" \
   "$@"

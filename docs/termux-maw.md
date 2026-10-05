@@ -98,10 +98,11 @@ cd "$HOME/repos/maw"
 sh scripts/install-maw-termux-launchers.sh
 ```
 
-The installer creates/updates `$HOME/bin/maw`, `$HOME/bin/maw-lab`, and
-`$HOME/bin/lab-maw`. The two Lab names are exact aliases. It only overwrites
-launchers it recognizes as MAW-managed (including the older documented MAW
-shortcut shape) and refuses to replace unrelated commands.
+The installer creates `$HOME/bin/maw`, `$HOME/bin/maw-lab`, and
+`$HOME/bin/lab-maw`. Existing legacy or user-modified MAW launchers are
+preserved verbatim. If only one Lab name exists, its behavior is cloned to the
+missing alias so custom arguments survive the upgrade. Unrelated commands are
+never overwritten.
 
 `$HOME/bin` must be on `PATH` (as it is for the reported `ultralab`
 launcher). All three shortcuts execute the repository launcher by absolute path
@@ -121,9 +122,11 @@ lab-maw
 `LLXPRT_SANDBOX=false`; the Lab remains the execution authority instead of
 adding an LLxprt container/seatbelt sandbox around the workspace.
 
-By default standalone `maw` uses your normal provider/profile configuration;
-passed CLI arguments are forwarded. Configure keys through the CLI's supported
-authentication flow rather than placing secrets in launch scripts.
+By default MAW selects the existing `OpenRouter` provider alias. That alias's
+current default model is `xiaomi/mimo-v2.6-pro`, preserving MAW's original
+startup preference without hard-locking it: explicit CLI/profile choices still
+win. Passed CLI arguments are forwarded. Configure keys through the CLI's
+supported authentication flow rather than placing secrets in launch scripts.
 
 ## Diagnostic/rollback
 

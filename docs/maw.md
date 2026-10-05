@@ -3,8 +3,9 @@
 MAW is the same full coding application in both modes. `maw` omits the Lab MCP
 server, including when the current directory is the Lab checkout. `maw-lab`
 requests the existing Lab server and keeps ordinary coding tools available.
-Neither command selects a provider or model for you. Existing profiles and CLI
-overrides work normally.
+MAW defaults to the existing `OpenRouter` provider alias, whose current default
+model is `xiaomi/mimo-v2.6-pro`. Explicit CLI or profile provider/model choices
+still take precedence, so the preference is a default rather than a lock.
 
 ## Source setup
 
@@ -26,8 +27,11 @@ maw-lab --help
 lab-maw --help
 ```
 
-The installer stops if either target already exists. The user bin directory
-must be on `PATH` (the default is `$HOME\.local\bin`). During development, run:
+The installer refreshes only unchanged MAW-managed launchers. Existing legacy
+or user-modified MAW launchers are preserved, and a missing Lab alias is cloned
+from the existing Lab launcher so custom arguments survive the upgrade.
+Unrelated commands are never overwritten. The user bin directory must be on
+`PATH` (the default is `$HOME\.local\bin`). During development, run:
 
 ```sh
 npm run start:maw -- --help
@@ -35,9 +39,11 @@ npm run start:maw-lab -- --help
 npm run start:maw-mimo -- "your prompt"
 ```
 
-`start:maw-mimo` is the previous OpenRouter/MiMo preference, now an explicit
-choice. Configure credentials through the existing authentication/profile
-system. The launch process preserves the caller's working directory.
+`start:maw` and `start:maw-lab` keep MAW's OpenRouter default through
+`LLXPRT_DEFAULT_PROVIDER`; the built-in OpenRouter alias supplies MiMo v2.6 Pro.
+`start:maw-mimo` remains as an explicit compatibility path. Configure credentials
+through the existing authentication/profile system. The launch process preserves
+the caller's working directory.
 
 ## Lab attachment
 
@@ -79,7 +85,8 @@ terminal/font rendering.
 ## Termux
 
 The experimental Android source launcher is documented in
-[termux-maw.md](termux-maw.md). It defaults to standalone operation and no
-longer forces OpenRouter/MiMo. The Termux installer creates both `maw-lab` and `lab-maw` as equivalent shortcuts
+[termux-maw.md](termux-maw.md). It defaults to OpenRouter (and therefore the
+OpenRouter alias's MiMo v2.6 Pro default) while explicit CLI/profile choices can
+override it. The Termux installer creates both `maw-lab` and `lab-maw` as equivalent shortcuts
 to the same source launcher with `MAW_LAB_MODE=on`. Android runtime success requires an actual
 on-device launch and native dependency check; desktop builds do not prove it.

@@ -2,9 +2,11 @@
 
 MAW is Cody's monster-hearted coding CLI. It keeps the LLxprt provider, profile,
 tool, session, and extension engine, with its own terminal identity and explicit
-Lab attachment. `maw` works in any repository without Lab services. `maw-lab` and its exact
-`lab-maw` alias request the existing Ultramonkeydog Lab MCP surface; `/mcp` reports the actual
-connection state.
+Lab attachment. MAW defaults to OpenRouter; the built-in OpenRouter alias currently
+defaults to `xiaomi/mimo-v2.6-pro`, while explicit CLI/profile choices still win.
+`maw` works in any repository without Lab services. `maw-lab` and its exact
+`lab-maw` alias request the existing Ultramonkeydog Lab MCP surface; `/mcp` reports
+the actual connection state.
 
 For source setup, launch commands, Lab root selection, visual styles, and
 current platform limits, see [MAW daily use](docs/maw.md).
