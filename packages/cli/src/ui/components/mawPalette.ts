@@ -43,10 +43,10 @@ export function getMawPalette(): {
         };
       default:
         return {
-          iron: '#E46A58',
-          bone: '#F1DFC9',
-          ember: '#F3BB66',
-          spectral: '#9A9EF4',
+          iron: '#FF5268',
+          bone: '#FFF0DA',
+          ember: '#FFC057',
+          spectral: '#AC83FF',
           style: 'MONARCH',
         };
     }
