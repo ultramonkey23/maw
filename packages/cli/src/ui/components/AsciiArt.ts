@@ -1,15 +1,19 @@
 /**
  * @license
- * Copyright 2025 Vybestack LLC
+ * Copyright 2026 Ultramonkeydog
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// MAW's mark is a pair of uneven, interlocking jaws rather than a generic
-// boxed wordmark. These are deliberately ASCII-only for reliable terminal
-// widths and readable shape at reduced font sizes.
-export const shortAsciiLogo = String.raw`  /\_o MAW o_/\
- <_/\/\___/\/\_>`;
+// Bold original MAW/Crown mark. ASCII-only to keep cell widths exact on
+// Windows consoles and narrow Android Termux terminals.
 
-export const longAsciiLogo = String.raw`       /\_o\__                   __/o_/\
-    __/  /\  \__     MAW     __/  /\  \__
-   <____/  \___/\/\/\/\___/  \____>`;
+export const shortAsciiLogo = String.raw` /\_ MAW _/\
+< SAVAGE CROWN >`;
+
+export const longAsciiLogo = String.raw`MAW // SAVAGE CROWN
+        /\     /\     /\
+ __  __     _     __        __
+|  \/  |   / \    \ \      / /
+| |\/| |  / _ \    \ \ /\ / /
+| |  | | / ___ \    \ V  V /
+|_|  |_|/_/   \_\    \_/\_/`;
