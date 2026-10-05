@@ -48,19 +48,28 @@ Python executable is not `python`.
 
 The Lab MCP server starts with an absolute script path and its own working
 directory. MAW still starts if the Lab root is missing. Use `/mcp` to check a
-real connection; a requested attachment is never proof of a handshake. Its
-initial tool shortlist offers Lab status, workspace, capability manifest,
-Partner identity, explicit project entry, execution proof, and chassis status.
-`project_entry` is observational context, not a mission assignment. The
-client's `includeTools` list is a discovery filter, not an authority boundary;
-Lab-owned tools control consequential actions.
+real connection; a requested attachment is never proof of a handshake.
+
+The explicit `maw-lab` mode now discovers **the complete canonical Lab MCP
+registry** via `tools/list`. It no longer replaces project settings with the
+previous seven-name `includeTools` discovery filter. It sets `trust: true`
+for this deliberately selected private Lab attachment to avoid per-tool MCP
+approval prompts. The ordinary workspace trust gate, server-side Lab authority,
+recovery checks and Git/project ownership are unchanged; network access is
+not enabled. This is configuration source truth, not an observed new handshake
+or successful consequence. The standalone `maw` command still omits Lab.
+`project_entry` remains observational context, not a mission assignment.
 
 ## Appearance
 
-The default MONARCH palette combines bone, ember, iron, and spectral violet.
-Set `MAW_STYLE=volt`, `grave`, or `mythic` before launch for three alternative
-accent lanes. The palette affects MAW chrome; code highlighting, low-color
-fallbacks, and custom LLxprt themes remain separate.
+The default MONARCH palette now uses stronger crimson, gold, bone, and violet,
+with a large MAW/Savage Crown ASCII mark and a compact two-line crown for
+narrow terminals. The width check includes the full signature to prevent
+wrapping within the header. Set `MAW_STYLE=volt`, `grave`, or `mythic`
+before launch for alternative accent lanes. The palette affects MAW chrome;
+code highlighting, low-color fallbacks, and custom LLxprt themes remain
+separate. An actual Windows/Termux re-launch is still needed to verify
+terminal/font rendering.
 
 ## Termux
 
