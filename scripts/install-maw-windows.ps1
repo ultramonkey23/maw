@@ -26,6 +26,7 @@ function Get-LauncherState {
   param([string]$Path)
   if (-not (Test-Path -LiteralPath $Path)) { return 'missing' }
   $item = Get-Item -LiteralPath $Path -Force
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return 'symlink' }
   if ($item.PSIsContainer) { return 'nonfile' }
   $existing = [IO.File]::ReadAllText($Path)
   if ($existing.Contains($managedMarker)) { return 'managed' }
@@ -36,6 +37,7 @@ function Get-LauncherState {
 function Assert-PreservableTarget {
   param([string]$Path)
   $state = Get-LauncherState -Path $Path
+  if ($state -eq 'symlink') { throw "Existing launcher symlink/reparse point was not overwritten: $Path" }
   if ($state -eq 'nonfile') { throw "Existing launcher path is not a file: $Path" }
   if ($state -eq 'unrelated') { throw "Existing non-MAW launcher was not overwritten: $Path" }
 }
