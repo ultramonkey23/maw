@@ -1,11 +1,11 @@
 # Copyright 2026 Ultramonkeydog. SPDX-License-Identifier: Apache-2.0
 param(
-  [string]$BinDir = (Join-Path $HOME '.local\\bin')
+  [string]$BinDir = (Join-Path $HOME '.local\bin')
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
-$cliBin = Join-Path $repoRoot 'packages\\cli\\bin'
+$cliBin = Join-Path $repoRoot 'packages\cli\bin'
 $node = (Get-Command node -ErrorAction Stop).Source
 $managedMarker = 'MAW managed launcher'
 
@@ -29,7 +29,7 @@ function Get-LauncherState {
   if ($item.PSIsContainer) { return 'nonfile' }
   $existing = [IO.File]::ReadAllText($Path)
   if ($existing.Contains($managedMarker)) { return 'managed' }
-  if ($existing.Contains($cliBin) -and ($existing -match 'maw(?:-lab)?\\.mjs')) { return 'legacy' }
+  if ($existing.Contains($cliBin) -and ($existing -match 'maw(?:-lab)?\.mjs')) { return 'legacy' }
   return 'unrelated'
 }
 
