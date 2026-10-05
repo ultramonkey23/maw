@@ -2,8 +2,8 @@
 
 MAW is Cody's monster-hearted coding CLI. It keeps the LLxprt provider, profile,
 tool, session, and extension engine, with its own terminal identity and explicit
-Lab attachment. `maw` works in any repository without Lab services. `maw-lab`
-requests the existing Ultramonkeydog Lab MCP surface; `/mcp` reports the actual
+Lab attachment. `maw` works in any repository without Lab services. `maw-lab` and its exact
+`lab-maw` alias request the existing Ultramonkeydog Lab MCP surface; `/mcp` reports the actual
 connection state.
 
 For source setup, launch commands, Lab root selection, visual styles, and
