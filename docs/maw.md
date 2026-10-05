@@ -15,14 +15,15 @@ npm ci
 npm run build
 ```
 
-The built CLI package exposes `maw` and `maw-lab` bins in addition to
-`llxprt`. On Windows, install independent `maw.cmd` and `maw-lab.cmd` launchers
-in the existing user bin directory without changing any `llxprt` command:
+The built CLI package exposes `maw`, `maw-lab`, and the exact `lab-maw` alias in
+addition to `llxprt`. On Windows, install/update their user-level launchers in
+the existing user bin directory without changing any `llxprt` command:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-maw-windows.ps1
 maw --help
 maw-lab --help
+lab-maw --help
 ```
 
 The installer stops if either target already exists. The user bin directory
@@ -40,14 +41,18 @@ system. The launch process preserves the caller's working directory.
 
 ## Lab attachment
 
-`maw-lab` looks for a Lab checkout with `AGENTS.md`, `labctl`, and
+`maw-lab` and `lab-maw` are the same Lab-attached mode. They look for a Lab
+checkout with `AGENTS.md`, `labctl`, and
 `tools/lab_mcp_server.py`. It checks `MAW_LAB_ROOT` when set, then Termux home,
 the desktop home sibling `ultramonkeydog-lab`, and ancestors of the current
 directory. Set `MAW_LAB_ROOT` for another layout and `MAW_LAB_PYTHON` if the
 Python executable is not `python`.
 
 The Lab MCP server starts with an absolute script path and its own working
-directory. MAW still starts if the Lab root is missing. Use `/mcp` to check a
+directory while MAW preserves the caller's current repository as the coding
+workspace. Lab-attached mode explicitly sets `LLXPRT_SANDBOX=false`; Lab owns the
+execution authority instead of nesting the session in LLxprt's container/seatbelt
+sandbox. MAW still starts if the Lab root is missing. Use `/mcp` to check a
 real connection; a requested attachment is never proof of a handshake.
 
 The explicit `maw-lab` mode now discovers **the complete canonical Lab MCP
@@ -75,6 +80,6 @@ terminal/font rendering.
 
 The experimental Android source launcher is documented in
 [termux-maw.md](termux-maw.md). It defaults to standalone operation and no
-longer forces OpenRouter/MiMo. A separate `maw-lab` shortcut can invoke the
-same script with `MAW_LAB_MODE=on`. Android runtime success requires an actual
+longer forces OpenRouter/MiMo. The Termux installer creates both `maw-lab` and `lab-maw` as equivalent shortcuts
+to the same source launcher with `MAW_LAB_MODE=on`. Android runtime success requires an actual
 on-device launch and native dependency check; desktop builds do not prove it.
