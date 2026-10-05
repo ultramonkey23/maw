@@ -247,6 +247,7 @@
         "llxprt": "bin/llxprt.mjs",
         "maw": "bin/maw.mjs",
         "maw-lab": "bin/maw-lab.mjs",
+        "lab-maw": "bin/maw-lab.mjs",
       },
       "dependencies": {
         "@agentclientprotocol/sdk": "^1.2.1",
