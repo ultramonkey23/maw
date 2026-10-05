@@ -27,7 +27,13 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const isCustom = Boolean(customAsciiArt);
   const maw = getMawPalette();
-  const isWide = terminalWidth >= getAsciiArtWidth(longAsciiLogo) + 2;
+  // Include the signature width when choosing the wide crown. Earlier the
+  // jaw art fitted while the longer slogan wrapped inside a narrower Box.
+  const wideSignature = ` // ${maw.style} / FORGE / PROVE`;
+  const wideFooterWidth = 'EVOLVE CODE'.length + wideSignature.length;
+  const isWide =
+    terminalWidth >=
+    Math.max(getAsciiArtWidth(longAsciiLogo), wideFooterWidth) + 2;
   let displayTitle: string;
   if (customAsciiArt) {
     displayTitle = customAsciiArt;
@@ -38,7 +44,14 @@ export const Header: React.FC<HeaderProps> = ({
   } else {
     displayTitle = 'MAW';
   }
-  const artWidth = getAsciiArtWidth(displayTitle);
+  const artWidth = Math.max(
+    getAsciiArtWidth(displayTitle),
+    !isCustom && terminalWidth >= getAsciiArtWidth(shortAsciiLogo)
+      ? isWide
+        ? wideFooterWidth
+        : 'EVOLVE CODE'.length
+      : 0,
+  );
   let renderedTitle: React.ReactNode;
   if (isCustom && Colors.GradientColors) {
     renderedTitle = (
@@ -51,7 +64,15 @@ export const Header: React.FC<HeaderProps> = ({
       <Text color={SemanticColors.text.accent}>{displayTitle}</Text>
     );
   } else {
-    const lineColors = [maw.iron, maw.bone, maw.spectral];
+    const lineColors = [
+      maw.ember,
+      maw.iron,
+      maw.spectral,
+      maw.bone,
+      maw.iron,
+      maw.ember,
+      maw.spectral,
+    ];
     renderedTitle = displayTitle.split('\n').map((line, index) => (
       <Text key={index} bold color={lineColors[index] ?? maw.spectral}>
         {line}
@@ -68,14 +89,12 @@ export const Header: React.FC<HeaderProps> = ({
     >
       {renderedTitle}
       {!isCustom && terminalWidth >= getAsciiArtWidth(shortAsciiLogo) && (
-        <Box paddingLeft={1} flexDirection="row">
+        <Box flexDirection="row">
           <Text bold color={maw.ember}>
             EVOLVE CODE
           </Text>
           {isWide && (
-            <Text
-              color={maw.spectral}
-            >{` // ${maw.style} / FORGE / PROVE`}</Text>
+            <Text color={maw.spectral}>{wideSignature}</Text>
           )}
         </Box>
       )}
