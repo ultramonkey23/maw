@@ -17,7 +17,10 @@ describe('MAW responsive terminal identity', () => {
   });
 
   it('fits compact terminals without escape sequences or wide Unicode glyphs', () => {
-    expect(getAsciiArtWidth(shortAsciiLogo)).toBeLessThanOrEqual(24);
+    expect(getAsciiArtWidth(shortAsciiLogo)).toBeLessThanOrEqual(18);
+    expect(getAsciiArtWidth(longAsciiLogo)).toBeLessThanOrEqual(34);
+    expect(longAsciiLogo).toContain('SAVAGE CROWN');
+    expect(longAsciiLogo).toContain('__  __');
     // Built from char codes rather than a regex literal: an escape character
     // in a literal trips no-control-regex (same approach as run-bun-tests.ts).
     const controlCharacters = new RegExp(
