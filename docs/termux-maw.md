@@ -91,7 +91,7 @@ by globally reinstalling LLxprt, replacing `ultralab`, modifying Termux's
 Node installation, or copying binaries from a generic Linux ARM64 build.
 Some native dependencies may still require Android-specific fixes.
 
-After those checks succeed, install a *separate* launch shortcut. First ensure
+After those checks succeed, install a _separate_ launch shortcut. First ensure
 `$HOME/bin/maw` does not already exist (including as a broken symlink):
 
 ```sh
@@ -119,11 +119,24 @@ cd "$HOME"
 maw
 ```
 
-By default this uses OpenRouter and `xiaomi/mimo-v2.6-pro`, matching the MAW
-desktop source command; passed CLI arguments are forwarded. Configure keys via
+By default this uses your normal provider/profile configuration; passed CLI
+arguments are forwarded. To select the previous preference explicitly, use
+`maw --provider OpenRouter --model xiaomi/mimo-v2.6-pro`. Configure keys via
 the CLI's supported authentication flow rather than placing secrets in launch
 scripts. MAW and LLxprt may reference common per-user configuration stores:
 check the effective provider, model and credential scope before changing them.
+
+For optional Lab attachment, create a separate `$HOME/bin/maw-lab` shortcut
+only after checking that path is unused. Its script body is:
+
+```sh
+#!/bin/sh
+MAW_LAB_MODE=on exec sh "$HOME/repos/maw/scripts/maw-termux.sh" "$@"
+```
+
+The launcher finds the Lab at Termux `$HOME` using its existing markers and
+starts the Lab MCP server with an absolute path. `/mcp` shows actual connection
+health. Standalone `maw` omits Lab MCP even from the Lab home directory.
 
 ## Diagnostic/rollback
 

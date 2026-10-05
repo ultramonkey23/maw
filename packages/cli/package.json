@@ -11,7 +11,9 @@
   "main": "index.ts",
   "types": "index.ts",
   "bin": {
-    "llxprt": "bin/llxprt.mjs"
+    "llxprt": "bin/llxprt.mjs",
+    "maw": "bin/maw.mjs",
+    "maw-lab": "bin/maw-lab.mjs"
   },
   "scripts": {
     "build": "bun ../../scripts/build_package.ts && bun ../../scripts/chmod_executable.ts dist/index.js && bun ./scripts/dist-test-artifact-guard.ts",

@@ -1,3 +1,16 @@
+# MAW
+
+MAW is Cody's monster-hearted coding CLI. It keeps the LLxprt provider, profile,
+tool, session, and extension engine, with its own terminal identity and explicit
+Lab attachment. `maw` works in any repository without Lab services. `maw-lab`
+requests the existing Ultramonkeydog Lab MCP surface; `/mcp` reports the actual
+connection state.
+
+For source setup, launch commands, Lab root selection, visual styles, and
+current platform limits, see [MAW daily use](docs/maw.md).
+
+The LLxprt foundation, documentation, and Apache-2.0 attribution follow below.
+
 <h1>
   <img src="docs/assets/llxprt.svg" alt="LLxprt logo" width="42" />
   <a href="https://vybestack.dev/llxprt-code.html">LLxprt Code</a>

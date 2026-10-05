@@ -36,7 +36,11 @@ export const SkipExitStep: React.FC<SkipExitStepProps> = ({
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
-        <Text color={Colors.Foreground}>To configure llxprt manually:</Text>
+        <Text color={Colors.Foreground}>
+          {['on', 'off'].includes(process.env['MAW_LAB_MODE'] ?? '')
+            ? 'Configure MAW when ready:'
+            : 'To configure llxprt manually:'}
+        </Text>
         <Box />
         <Text color={Colors.Foreground}>
           • Use <Text color={Colors.AccentCyan}>/auth &lt;provider&gt;</Text> to

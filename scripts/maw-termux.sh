@@ -81,6 +81,12 @@ fi
 
 # Bun preload supplies MAW dev version metadata, matching the desktop source path.
 # Preserve cwd, HOME, provider configuration and all CLI arguments as supplied.
+# Standalone is the default even when launched from the Lab home checkout.
+case "${MAW_LAB_MODE:-off}" in
+  on) MAW_LAB_MODE=on ;;
+  *) MAW_LAB_MODE=off ;;
+esac
+export MAW_LAB_MODE
 exec "$bun_path" --preload "$repo_root/scripts/dev-env.ts" \
   "$repo_root/packages/cli/index.ts" \
-  --provider OpenRouter --model xiaomi/mimo-v2.6-pro "$@"
+  "$@"

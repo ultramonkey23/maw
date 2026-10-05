@@ -7,6 +7,7 @@
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../../colors.js';
+import { getMawPalette } from '../mawPalette.js';
 import {
   RadioButtonSelect,
   type RadioSelectItem,
@@ -23,6 +24,7 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({
   onSelect,
   isFocused = true,
 }) => {
+  const isMaw = ['on', 'off'].includes(process.env['MAW_LAB_MODE'] ?? '');
   const options: Array<RadioSelectItem<WelcomeChoice>> = [
     {
       label: 'Set up now (recommended)',
@@ -39,17 +41,22 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({
   return (
     <Box flexDirection="column">
       <Box flexDirection="column" marginBottom={1}>
-        <Text bold color={Colors.AccentCyan}>
-          Welcome to llxprt!
-        </Text>
-        <Text color={Colors.Foreground}> </Text>
-        <Text color={Colors.Foreground}>
-          {"Let's get you set up in just a few steps."}
+        <Text bold color={isMaw ? getMawPalette().ember : Colors.AccentCyan}>
+          {isMaw ? 'MAW // AWAKEN' : 'Welcome to llxprt!'}
         </Text>
         <Text color={Colors.Foreground}>
-          {"You'll choose an AI provider and configure authentication"}
+          {isMaw
+            ? 'Choose a provider and sign in to begin coding.'
+            : "Let's get you set up in just a few steps."}
         </Text>
-        <Text color={Colors.Foreground}>so llxprt can work its magic.</Text>
+        {!isMaw && (
+          <>
+            <Text color={Colors.Foreground}>
+              {"You'll choose an AI provider and configure authentication"}
+            </Text>
+            <Text color={Colors.Foreground}>so llxprt can work its magic.</Text>
+          </>
+        )}
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>

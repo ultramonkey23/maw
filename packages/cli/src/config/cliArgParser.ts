@@ -91,12 +91,17 @@ export interface CliArgs {
 
 /** Creates the base yargs instance with locale and usage. */
 function buildRootYargs(): Argv {
+  const mode = process.env['MAW_LAB_MODE'];
+  let commandName = 'llxprt';
+  if (mode === 'on') commandName = 'maw-lab';
+  if (mode === 'off') commandName = 'maw';
+  const productName = mode === 'on' || mode === 'off' ? 'MAW' : 'LLxprt Code';
   return yargs(hideBin(process.argv))
     .locale('en')
-    .scriptName('llxprt')
+    .scriptName(commandName)
     .usage(
       '$0 [options]',
-      'LLxprt Code - Launch an interactive CLI, use -p/--prompt for non-interactive mode',
+      `${productName} - Launch an interactive CLI, use -p/--prompt for non-interactive mode`,
     );
 }
 
@@ -253,9 +258,12 @@ function handleSubcommandExit(result: Record<string, unknown>): void {
  * Subcommand handlers (mcp, hooks, extensions, skills) call process.exit(0) when invoked.
  */
 function configureLaunchCommand(yargsInstance: Argv): void {
+  const productName = ['on', 'off'].includes(process.env['MAW_LAB_MODE'] ?? '')
+    ? 'MAW'
+    : 'LLxprt';
   yargsInstance.command(
     '$0 [promptWords...]',
-    'Launch LLxprt CLI',
+    `Launch ${productName} CLI`,
     (innerYargs) => {
       applyInnerOptions(innerYargs);
       applyDeprecations(innerYargs);

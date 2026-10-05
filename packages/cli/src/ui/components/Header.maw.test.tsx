@@ -8,14 +8,14 @@ import { render } from '../../__tests__/render.js';
 import { Header } from './Header.js';
 
 describe('MAW responsive header', () => {
-  it('renders a restrained branded wide header', () => {
+  it('renders the expressive wide header', () => {
     const frame =
       render(
         <Header terminalWidth={100} version="1.0" nightly={false} />,
       ).lastFrame() ?? '';
     expect(frame).toContain('MAW');
-    expect(frame).toContain('LIVING CODE');
-    expect(frame).toContain('TRACE / FORGE / PROVE');
+    expect(frame).toContain('EVOLVE CODE');
+    expect(frame).toContain('MONARCH / FORGE / PROVE');
     expect(frame).not.toContain('LLXPRT CODE');
   });
 
@@ -25,8 +25,8 @@ describe('MAW responsive header', () => {
         <Header terminalWidth={22} version="1.0" nightly={false} />,
       ).lastFrame() ?? '';
     expect(frame).toContain('MAW');
-    expect(frame).toContain('LIVING CODE');
-    expect(frame).not.toContain('TRACE / FORGE / PROVE');
+    expect(frame).toContain('EVOLVE CODE');
+    expect(frame).not.toContain('MONARCH / FORGE / PROVE');
   });
 
   it('keeps user-defined ASCII art instead of stamping MAW over it', () => {
@@ -40,6 +40,6 @@ describe('MAW responsive header', () => {
         />,
       ).lastFrame() ?? '';
     expect(frame).toContain('CUSTOM BANNER');
-    expect(frame).not.toContain('LIVING CODE');
+    expect(frame).not.toContain('EVOLVE CODE');
   });
 });

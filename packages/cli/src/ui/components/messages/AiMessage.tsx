@@ -97,7 +97,7 @@ export const AiMessage: React.FC<AiMessageProps> = ({
       <Box flexDirection="row">
         <Box width={prefixWidth}>
           <Text
-            color={getMawPalette().bone}
+            color={getMawPalette().spectral}
             aria-label={SCREEN_READER_MODEL_PREFIX}
           >
             {prefix}

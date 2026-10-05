@@ -24,10 +24,10 @@ export const Tips: React.FC<TipsProps> = ({ memory }) => {
   return (
     <Box flexDirection="column" paddingLeft={1}>
       <Text color={maw.ember} bold>
-        FIELD NOTES
+        THE HUNT
       </Text>
       <Text color={SemanticColors.text.secondary}>
-        <Text color={maw.iron}>TRACK</Text> Inspect the cause, not just the
+        <Text color={maw.spectral}>TRACK</Text> Inspect the cause, not just the
         symptom.
       </Text>
       <Text color={SemanticColors.text.secondary}>
@@ -43,6 +43,11 @@ export const Tips: React.FC<TipsProps> = ({ memory }) => {
             ? 'Workspace instructions detected (LLXPRT.md).'
             : 'Add LLXPRT.md for repository-specific instructions.'}
         </Text>
+        {process.env['MAW_LAB_MODE'] === 'on' && (
+          <Text color={maw.spectral}>
+            LAB REQUESTED /mcp shows live connection health
+          </Text>
+        )}
       </Box>
     </Box>
   );
