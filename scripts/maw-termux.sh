@@ -83,7 +83,12 @@ fi
 # Preserve cwd, HOME, provider configuration and all CLI arguments as supplied.
 # Standalone is the default even when launched from the Lab home checkout.
 case "${MAW_LAB_MODE:-off}" in
-  on) MAW_LAB_MODE=on ;;
+  on)
+    MAW_LAB_MODE=on
+    # Lab already owns execution authority. Do not add LLxprt container/seatbelt sandboxing.
+    LLXPRT_SANDBOX=false
+    export LLXPRT_SANDBOX
+    ;;
   *) MAW_LAB_MODE=off ;;
 esac
 export MAW_LAB_MODE
