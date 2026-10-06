@@ -77,16 +77,19 @@ export async function transcodeImageToSupportedFormat(
   }
   try {
     if (mimeType === BMP_MIME_TYPE) {
-      // Bun.Image has a portable BMP decoder and PNG encoder built into Bun
-      // 1.3.14+, including the Android build. This removes sharp from the
-      // common screenshot-normalization path on Termux.
-      const bunEncoded = await transcodeBmpWithBun(content);
-      if (bunEncoded !== undefined) {
-        return bunEncoded;
-      }
+      // Preserve MAW's existing BI_RGB validation boundary first. Bun.Image
+      // may support a wider BMP surface than MAW intentionally admits, so it
+      // is the native execution engine here, not the format-policy authority.
       const raw = decodeBmpToRawRgb(content);
       if (raw === null) {
         return null;
+      }
+      // Bun.Image has a portable BMP decoder and PNG encoder built into Bun
+      // 1.3.14+, including the Android build. This removes sharp from valid
+      // screenshot normalization on Termux while keeping the old validator.
+      const bunEncoded = await transcodeBmpWithBun(content);
+      if (bunEncoded !== undefined) {
+        return bunEncoded;
       }
       return await encodeRawRgbAsPng(raw);
     }
