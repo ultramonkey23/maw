@@ -25,6 +25,7 @@ import { sanitizePromptCacheKey } from '../openai-responses/sanitizePromptCacheK
 import { applyOpenAIChatReasoning } from './openai-chat-reasoning.js';
 import { type Config } from '@vybestack/llxprt-code-core/config/config.js';
 import { applyKimiCacheAffinity } from './kimiCacheAffinity.js';
+import { applyOpenRouterSessionAffinity } from './openRouterSessionAffinity.js';
 import {
   conservativeMediaTransportCapabilities,
   type ProviderMediaTransportCapabilities,
@@ -293,6 +294,10 @@ export async function prepareRequest(
     providerName: resolvedProviderName,
     runtimeId: options.invocation.runtimeId,
     cacheAffinityKey: mediaTransportCapabilities.cacheAffinityKey,
+  });
+  applyOpenRouterSessionAffinity(requestBody, {
+    providerName: resolvedProviderName,
+    runtimeId: options.invocation.runtimeId,
   });
 
   return {
