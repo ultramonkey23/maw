@@ -25,6 +25,20 @@ export const VISION_SUPPORTED_IMAGE_MIME_TYPES: ReadonlySet<string> = new Set([
 const PNG_MIME_TYPE = 'image/png';
 const BMP_MIME_TYPE = 'image/bmp';
 
+async function transcodeBmpWithBun(
+  content: Buffer,
+): Promise<Buffer | undefined> {
+  if (typeof Bun === 'undefined' || typeof Bun.Image !== 'function') {
+    return undefined;
+  }
+  const image = new Bun.Image(content);
+  const metadata = await image.metadata();
+  if (metadata.format !== 'bmp') {
+    throw new Error(`decoded BMP container was ${metadata.format}`);
+  }
+  return Buffer.from(await image.png().bytes());
+}
+
 async function encodeRawRgbAsPng(image: {
   width: number;
   height: number;
@@ -63,6 +77,13 @@ export async function transcodeImageToSupportedFormat(
   }
   try {
     if (mimeType === BMP_MIME_TYPE) {
+      // Bun.Image has a portable BMP decoder and PNG encoder built into Bun
+      // 1.3.14+, including the Android build. This removes sharp from the
+      // common screenshot-normalization path on Termux.
+      const bunEncoded = await transcodeBmpWithBun(content);
+      if (bunEncoded !== undefined) {
+        return bunEncoded;
+      }
       const raw = decodeBmpToRawRgb(content);
       if (raw === null) {
         return null;

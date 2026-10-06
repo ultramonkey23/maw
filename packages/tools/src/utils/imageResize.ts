@@ -66,6 +66,96 @@ const MIME_FORMATS: ReadonlyMap<string, string> = new Map([
   ['image/webp', 'webp'],
 ]);
 
+function hasPngAnimationChunk(content: Buffer): boolean {
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (content.length < signature.length || !content.subarray(0, 8).equals(signature)) {
+    return false;
+  }
+  let offset = 8;
+  while (offset + 12 <= content.length) {
+    const length = content.readUInt32BE(offset);
+    const typeStart = offset + 4;
+    const dataEnd = typeStart + 4 + length;
+    if (dataEnd + 4 > content.length) return false;
+    const type = content.toString('ascii', typeStart, typeStart + 4);
+    if (type === 'acTL') return true;
+    if (type === 'IDAT' || type === 'IEND') return false;
+    offset = dataEnd + 4;
+  }
+  return false;
+}
+
+function canUseBunImageResize(content: Buffer, mimeType: string): boolean {
+  if (
+    typeof Bun === 'undefined' ||
+    typeof Bun.Image !== 'function' ||
+    (mimeType !== 'image/jpeg' && mimeType !== 'image/png')
+  ) {
+    return false;
+  }
+  return mimeType !== 'image/png' || !hasPngAnimationChunk(content);
+}
+
+async function resizeWithBunImage(
+  content: Buffer,
+  mimeType: string,
+  policy: ImageResizePolicy,
+): Promise<Buffer> {
+  const sourceFormat = MIME_FORMATS.get(mimeType);
+  if (sourceFormat === undefined) {
+    throw new Error(`resizing does not support ${mimeType} source`);
+  }
+
+  const input = new Bun.Image(content, { autoOrient: true });
+  const metadata = await input.metadata();
+  if (metadata.format !== sourceFormat) {
+    throw new Error(
+      `declared ${mimeType} does not match decoded ${metadata.format} container`,
+    );
+  }
+
+  const dimensions: ImageDimensions = {
+    width: metadata.width,
+    height: metadata.height,
+    frames: 1,
+  };
+  const scale = getScale(dimensions, policy);
+  if (scale >= 1) {
+    return content;
+  }
+
+  const targetWidth = Math.max(1, Math.floor(dimensions.width * scale));
+  const targetHeight = Math.max(1, Math.floor(dimensions.height * scale));
+  const pipeline = new Bun.Image(content, { autoOrient: true }).resize(
+    targetWidth,
+    targetHeight,
+    {
+      fit: 'inside',
+      withoutEnlargement: true,
+    },
+  );
+  const resized =
+    mimeType === 'image/jpeg'
+      ? Buffer.from(await pipeline.jpeg().bytes())
+      : Buffer.from(await pipeline.png().bytes());
+
+  const outputMetadata = await new Bun.Image(resized, {
+    autoOrient: true,
+  }).metadata();
+  if (outputMetadata.format !== sourceFormat) {
+    throw new Error(`output container changed from ${mimeType}`);
+  }
+  const outputDimensions: ImageDimensions = {
+    width: outputMetadata.width,
+    height: outputMetadata.height,
+    frames: 1,
+  };
+  if (!satisfiesPolicy(outputDimensions, policy)) {
+    throw new Error('output dimensions exceed the configured limits');
+  }
+  return resized;
+}
+
 function getDimensions(metadata: Metadata): ImageDimensions {
   const width = metadata.width;
   const height = metadata.pageHeight ?? metadata.height;
@@ -206,11 +296,17 @@ export async function resizeImageIfNeeded(
   }
 
   try {
-    // Some supported host/runtime combinations (notably Android/Termux) do
-    // not have a loadable sharp native addon. A normal CLI or text-only tool
-    // session must not crash during module discovery because image resizing
-    // happens to be unavailable. Keep the native dependency at the actual
-    // resize boundary, after the no-policy fast path above.
+    // Bun 1.3.14+ ships a native image pipeline in the runtime itself. Prefer
+    // it for static PNG/JPEG so Android/Termux does not depend on sharp's
+    // unavailable native addon and other Bun hosts avoid an extra native hop.
+    // Animated PNG stays on the sharp path because Bun.Image is a single-frame
+    // pipeline for the formats where animation fidelity is not guaranteed.
+    if (canUseBunImageResize(content, mimeType)) {
+      return await resizeWithBunImage(content, mimeType, policy);
+    }
+
+    // Keep sharp as the compatibility/fidelity path for animated and other
+    // supported containers, and for Node hosts where Bun.Image is unavailable.
     const { default: sharp } = await import('sharp');
     const metadata = await sharp(content, {
       animated: true,

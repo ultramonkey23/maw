@@ -85,6 +85,25 @@ const EDGE_POLICY: ImageResizePolicy = {
 };
 
 describe('resizeImageIfNeeded', () => {
+  it('uses Bun.Image for static PNG/JPEG resize semantics without changing containers', async () => {
+    for (const format of ['png', 'jpeg'] as const) {
+      const original = await createImage(320, 160, format);
+      const resized = await resizeImageIfNeeded(
+        original,
+        `image/${format}`,
+        `bun-native.${format}`,
+        { maxLongEdge: 120 },
+      );
+      const metadata = await new Bun.Image(resized).metadata();
+
+      expect(metadata.format).toBe(format);
+      expect({ width: metadata.width, height: metadata.height }).toStrictEqual({
+        width: 120,
+        height: 60,
+      });
+    }
+  });
+
   it('returns compliant image bytes without re-encoding or upscaling', async () => {
     const original = await createImage(80, 40, 'png');
 
