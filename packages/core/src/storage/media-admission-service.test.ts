@@ -5,7 +5,8 @@
  */
 
 import { assertInstanceOf } from '@vybestack/llxprt-code-test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test';
+import * as fs from 'node:fs/promises';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -27,6 +28,7 @@ describe('media-admission-service', () => {
       directory = await mkdtemp(join(tmpdir(), 'llxprt-media-admission-'));
     });
     afterEach(async () => {
+      vi.restoreAllMocks();
       await rm(directory, { recursive: true, force: true });
     });
     return () => directory;
@@ -79,6 +81,59 @@ describe('media-admission-service', () => {
           providerMetadata: { detail: 'high' },
         });
         expect(JSON.stringify(stored)).not.toContain(PNG_BASE64);
+      });
+
+      it('admits an image after stale-lock recovery when Android denies hard links', async () => {
+        const root = tempDirectory();
+        const lockDirectory = join(root, 'locks');
+        const lockPath = join(lockDirectory, 'store.lock');
+        await fs.mkdir(lockDirectory, { recursive: true });
+        await fs.writeFile(
+          lockPath,
+          JSON.stringify({
+            version: 1,
+            token: 'stale-termux-media-lock',
+            pid: 999_999_999,
+            hostname: 'termux-test',
+            createdAt: Date.now() - 60_000,
+          }),
+        );
+        const staleAt = new Date(Date.now() - 60_000);
+        await fs.utimes(lockPath, staleAt, staleAt);
+
+        vi.spyOn(fs, 'link').mockImplementation(async () => {
+          const error = new Error(
+            'EACCES: operation not permitted, link',
+          ) as NodeJS.ErrnoException;
+          error.code = 'EACCES';
+          throw error;
+        });
+
+        const store = new LocalMediaStore({
+          rootDirectory: root,
+          quotaBytes: 1024,
+          staleLockMs: 1,
+          lockTimeoutMs: 250,
+        });
+        const admission = new MediaAdmissionService(store);
+
+        const admitted = await admission.admitContent(imageContent(), {
+          turnId: 'turn-termux-stale-lock',
+          source: 'read-file',
+        });
+        const stored = admitted.blocks[1];
+        if (stored.type !== 'media' || stored.encoding !== 'reference') {
+          throw new Error('Expected admitted media reference');
+        }
+
+        expect(stored).toMatchObject({
+          mimeType: 'image/png',
+          dimensions: { width: 1, height: 1 },
+        });
+        expect(await store.readVerified(stored)).toStrictEqual(
+          new Uint8Array(Buffer.from(PNG_BASE64, 'base64')),
+        );
+        expect(await fs.readdir(lockDirectory)).toStrictEqual([]);
       });
 
       it('releases the exact reservations created for admitted contents', async () => {

@@ -5,8 +5,12 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { link, lstat, readFile, unlink } from 'node:fs/promises';
+import { link, lstat, readFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import {
+  isHardLinkUnavailable,
+  linkOrCopyExclusive,
+} from '@vybestack/llxprt-code-storage/utils/linkOrCopyExclusive.js';
 import type { StoreLockOwner } from './local-media-store-types.js';
 import {
   hasErrnoCode,
@@ -75,6 +79,21 @@ function claimStillOwnsStaleLock(
   return ownerMatches(observed.owner, claimed.owner, current.owner);
 }
 
+function capturedStillMatchesObservedStaleLock(
+  observed: ObservedLock,
+  captured: ObservedLock,
+  staleLockMs: number,
+): boolean {
+  if (!captured.metadata.isFile()) return false;
+  if (captured.metadata.dev !== observed.metadata.dev) return false;
+  if (captured.metadata.ino !== observed.metadata.ino) return false;
+  if (Date.now() - Number(captured.metadata.mtimeMs) < staleLockMs) {
+    return false;
+  }
+  if (observed.owner === undefined) return captured.owner === undefined;
+  return captured.owner?.token === observed.owner.token;
+}
+
 function combineFailures(primary: unknown, cleanup: unknown): unknown {
   if (primary === undefined) return cleanup;
   if (cleanup === undefined) return primary;
@@ -95,6 +114,97 @@ async function removeClaim(
   } catch (error) {
     return hasErrnoCode(error, 'ENOENT') ? undefined : error;
   }
+}
+
+async function restoreCapturedLock(
+  input: LockRecoveryInput,
+  capturePath: string,
+): Promise<unknown | undefined> {
+  try {
+    await linkOrCopyExclusive(capturePath, input.lockPath);
+  } catch (error) {
+    if (!hasErrnoCode(error, 'EEXIST')) {
+      // The capture may be the only surviving copy of a replacement live
+      // owner. Keep it intact rather than deleting evidence we cannot restore.
+      return error;
+    }
+    // A newer owner already occupies the well-known path. The captured owner
+    // can no longer prove ownership and is superseded, matching the hardened
+    // SessionLockManager recovery semantics.
+  }
+  return removeClaim(capturePath, input.syncDirectory);
+}
+
+/**
+ * Android/Termux denies hard links with EACCES. When that happens, stale lock
+ * recovery cannot use the inode-sharing hard-link claim protocol above.
+ *
+ * Fall back to the same recoverable rename/capture pattern used by MAW's
+ * hardened SessionLockManager: atomically move the candidate out of the
+ * well-known path, prove the captured inode/token is still the stale lock we
+ * observed, and restore it exclusively if a replacement raced into the slot.
+ * The restore uses linkOrCopyExclusive, so it remains non-clobbering on both
+ * ordinary filesystems and Android.
+ */
+async function recoverStaleStoreLockWithoutHardLinks(
+  input: LockRecoveryInput,
+  observed: ObservedLock,
+  capturePath: string,
+): Promise<boolean> {
+  try {
+    await rename(input.lockPath, capturePath);
+  } catch (error) {
+    if (hasErrnoCode(error, 'ENOENT')) return true;
+    throw wrapError(
+      `capture stale store lock for ${input.operation}`,
+      input.contentId,
+      error,
+    );
+  }
+
+  let captured: ObservedLock;
+  try {
+    captured = await observeLock(capturePath);
+  } catch (error) {
+    if (hasErrnoCode(error, 'ENOENT')) return true;
+    const restoreFailure = await restoreCapturedLock(input, capturePath);
+    throw wrapError(
+      `verify captured stale store lock for ${input.operation}`,
+      input.contentId,
+      combineFailures(error, restoreFailure),
+    );
+  }
+
+  if (
+    capturedStillMatchesObservedStaleLock(
+      observed,
+      captured,
+      input.staleLockMs,
+    )
+  ) {
+    const cleanupFailure = await removeClaim(
+      capturePath,
+      input.syncDirectory,
+    );
+    if (cleanupFailure !== undefined) {
+      throw wrapError(
+        `recover stale store lock for ${input.operation}`,
+        input.contentId,
+        cleanupFailure,
+      );
+    }
+    return true;
+  }
+
+  const restoreFailure = await restoreCapturedLock(input, capturePath);
+  if (restoreFailure !== undefined) {
+    throw wrapError(
+      `restore raced store lock for ${input.operation}`,
+      input.contentId,
+      restoreFailure,
+    );
+  }
+  return false;
 }
 
 export async function recoverStaleStoreLock(
@@ -122,6 +232,13 @@ export async function recoverStaleStoreLock(
     await link(input.lockPath, claimPath);
   } catch (error) {
     if (hasErrnoCode(error, 'ENOENT')) return true;
+    if (isHardLinkUnavailable(error)) {
+      return recoverStaleStoreLockWithoutHardLinks(
+        input,
+        observed,
+        claimPath,
+      );
+    }
     throw wrapError(
       `claim stale store lock for ${input.operation}`,
       input.contentId,
