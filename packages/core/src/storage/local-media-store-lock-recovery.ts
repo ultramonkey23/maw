@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { link, lstat, readFile, rename, unlink } from 'node:fs/promises';
+import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   isHardLinkUnavailable,
@@ -28,7 +28,7 @@ interface LockRecoveryInput {
 }
 
 interface ObservedLock {
-  readonly metadata: Awaited<ReturnType<typeof lstat>>;
+  readonly metadata: Awaited<ReturnType<typeof fs.lstat>>;
   readonly owner: StoreLockOwner | undefined;
 }
 
@@ -36,7 +36,7 @@ async function readLockOwner(
   path: string,
 ): Promise<StoreLockOwner | undefined> {
   try {
-    const parsed: unknown = JSON.parse(await readFile(path, 'utf8'));
+    const parsed: unknown = JSON.parse(await fs.readFile(path, 'utf8'));
     return parseStoreLockOwner(parsed);
   } catch (error) {
     if (hasErrnoCode(error, 'ENOENT')) throw error;
@@ -46,7 +46,7 @@ async function readLockOwner(
 
 async function observeLock(path: string): Promise<ObservedLock> {
   const [metadata, owner] = await Promise.all([
-    lstat(path),
+    fs.lstat(path),
     readLockOwner(path),
   ]);
   return { metadata, owner };
@@ -108,7 +108,7 @@ async function removeClaim(
   syncDirectory: () => Promise<void>,
 ): Promise<unknown> {
   try {
-    await unlink(claimPath);
+    await fs.unlink(claimPath);
     await syncDirectory();
     return undefined;
   } catch (error) {
@@ -152,7 +152,7 @@ async function recoverStaleStoreLockWithoutHardLinks(
   capturePath: string,
 ): Promise<boolean> {
   try {
-    await rename(input.lockPath, capturePath);
+    await fs.rename(input.lockPath, capturePath);
   } catch (error) {
     if (hasErrnoCode(error, 'ENOENT')) return true;
     throw wrapError(
@@ -229,7 +229,7 @@ export async function recoverStaleStoreLock(
     `store.lock.${randomUUID()}.takeover`,
   );
   try {
-    await link(input.lockPath, claimPath);
+    await fs.link(input.lockPath, claimPath);
   } catch (error) {
     if (hasErrnoCode(error, 'ENOENT')) return true;
     if (isHardLinkUnavailable(error)) {
@@ -255,7 +255,7 @@ export async function recoverStaleStoreLock(
     if (
       claimStillOwnsStaleLock(observed, claimed, current, input.staleLockMs)
     ) {
-      await unlink(input.lockPath);
+      await fs.unlink(input.lockPath);
       recovered = true;
     }
   } catch (error) {
