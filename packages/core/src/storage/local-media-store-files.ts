@@ -8,7 +8,6 @@ import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import {
   chmod,
-  link,
   lstat,
   mkdir,
   open,
@@ -18,6 +17,7 @@ import {
   utimes,
 } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { linkOrCopyExclusive } from '@vybestack/llxprt-code-storage/utils/linkOrCopyExclusive.js';
 import type { LocalMediaStoreFileOperations } from './local-media-store-types.js';
 import {
   MediaObjectCorruptError,
@@ -61,7 +61,10 @@ export class LocalMediaStoreFiles {
     this.instanceDirectory = join(rootDirectory, 'instances');
     this.lockDirectory = join(rootDirectory, 'locks');
     this.lockPath = join(this.lockDirectory, 'store.lock');
-    this.fileOperations = fileOperations ?? { link, rename };
+    this.fileOperations = fileOperations ?? {
+      link: linkOrCopyExclusive,
+      rename,
+    };
   }
 
   async ensureDirectories(contentId: string | undefined): Promise<void> {
