@@ -33,6 +33,16 @@ lab-maw --help
 The installer refreshes only unchanged MAW-managed launchers. Existing legacy
 or user-modified MAW launchers are preserved, and a missing Lab alias is cloned
 from the existing Lab launcher so custom arguments survive the upgrade.
+Generated MAW launchers from the earlier absolute-Node format are upgraded
+automatically; hand-modified managed launchers are not.
+
+Windows launchers resolve `node.exe` from the current `Path` at **launch
+time**, so Node version-manager switches and upgrades do not leave MAW pointing
+at an installer-time executable that no longer exists. The wrapper sets
+`NoDefaultCurrentDirectoryInExePath` before that lookup so `cmd.exe` does not
+take a `node.exe` from the caller's project directory ahead of the PATH-managed
+runtime.
+
 Unrelated commands are never overwritten. The default launcher directory is
 `$HOME\.local\bin`; if it is missing from the persistent per-user `Path`,
 the installer adds it and verifies that `Get-Command` resolves all three MAW
