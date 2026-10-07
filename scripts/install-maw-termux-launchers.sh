@@ -5,7 +5,6 @@ set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P) || exit 43
 repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd -P) || exit 43
-bin_dir=${MAW_BIN_DIR:-"$HOME/bin"}
 source_launcher="$repo_root/scripts/maw-termux.sh"
 managed_marker='# MAW managed launcher'
 
@@ -13,6 +12,50 @@ managed_marker='# MAW managed launcher'
   printf 'MAW launcher install: missing %s\n' "$source_launcher" >&2
   exit 43
 }
+
+normalize_dir() {
+  case "$1" in
+    /) printf '%s\n' / ;;
+    */) printf '%s\n' "${1%/}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+path_contains_dir() {
+  wanted=$(normalize_dir "$1")
+  old_ifs=$IFS
+  IFS=:
+  for entry in ${PATH:-}; do
+    [ -n "$entry" ] || entry=.
+    if [ "$(normalize_dir "$entry")" = "$wanted" ]; then
+      IFS=$old_ifs
+      return 0
+    fi
+  done
+  IFS=$old_ifs
+  return 1
+}
+
+if [ -n "${MAW_BIN_DIR:-}" ]; then
+  bin_dir=$(normalize_dir "$MAW_BIN_DIR")
+  if ! path_contains_dir "$bin_dir"; then
+    printf 'MAW launcher install: MAW_BIN_DIR is not on PATH: %s\n' "$bin_dir" >&2
+    exit 2
+  fi
+elif path_contains_dir "$HOME/bin"; then
+  # Preserve the established user-bin layout when it is already discoverable.
+  bin_dir=$(normalize_dir "$HOME/bin")
+else
+  [ -n "${PREFIX:-}" ] || {
+    printf '%s\n' 'MAW launcher install: PREFIX is unset; cannot locate the Termux executable directory.' >&2
+    exit 43
+  }
+  bin_dir=$(normalize_dir "$PREFIX/bin")
+  if ! path_contains_dir "$bin_dir"; then
+    printf 'MAW launcher install: Termux executable directory is not on PATH: %s\n' "$bin_dir" >&2
+    exit 43
+  fi
+fi
 
 mkdir -p "$bin_dir"
 
@@ -118,6 +161,16 @@ clone_missing_lab_peer() {
   fi
 }
 
+verify_command_resolution() {
+  name=$1
+  expected="$bin_dir/$name"
+  resolved=$(command -v "$name" 2>/dev/null || true)
+  if [ "$resolved" != "$expected" ]; then
+    printf 'MAW launcher install: %s resolves to %s instead of %s\n' "$name" "${resolved:-<missing>}" "$expected" >&2
+    exit 3
+  fi
+}
+
 install_or_preserve maw standalone
 clone_missing_lab_peer
 install_or_preserve maw-lab lab
@@ -128,4 +181,7 @@ if [ -f "$bin_dir/maw-lab" ] && [ -f "$bin_dir/lab-maw" ] &&
   printf '%s\n' 'MAW launcher install: maw-lab and lab-maw differ; preserved both rather than discarding custom behavior.' >&2
 fi
 
-printf 'MAW commands ready: maw, maw-lab, lab-maw\n'
+verify_command_resolution maw
+verify_command_resolution maw-lab
+verify_command_resolution lab-maw
+printf 'MAW commands ready from any working directory: maw, maw-lab, lab-maw (%s)\n' "$bin_dir"
