@@ -104,6 +104,34 @@ describe('resizeImageIfNeeded', () => {
     }
   });
 
+  it('keeps CMYK JPEG compatibility when Bun.Image cannot decode pixels', async () => {
+    const cmyk = await sharp({
+      create: {
+        width: 240,
+        height: 120,
+        channels: 3,
+        background: { r: 30, g: 140, b: 210 },
+      },
+    })
+      .toColourspace('cmyk')
+      .jpeg()
+      .toBuffer();
+    expect((await sharp(cmyk).metadata()).space).toBe('cmyk');
+
+    const resized = await resizeImageIfNeeded(
+      cmyk,
+      'image/jpeg',
+      'cmyk.jpg',
+      { maxLongEdge: 120 },
+    );
+
+    expect(await getDisplayedDimensions(resized)).toStrictEqual({
+      width: 120,
+      height: 60,
+    });
+    expect((await sharp(resized).metadata()).format).toBe('jpeg');
+  });
+
   it('returns compliant image bytes without re-encoding or upscaling', async () => {
     const original = await createImage(80, 40, 'png');
 

@@ -67,8 +67,13 @@ const MIME_FORMATS: ReadonlyMap<string, string> = new Map([
 ]);
 
 function hasPngAnimationChunk(content: Buffer): boolean {
-  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  if (content.length < signature.length || !content.subarray(0, 8).equals(signature)) {
+  const signature = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ]);
+  if (
+    content.length < signature.length ||
+    !content.subarray(0, 8).equals(signature)
+  ) {
     return false;
   }
   let offset = 8;
@@ -154,6 +159,22 @@ async function resizeWithBunImage(
     throw new Error('output dimensions exceed the configured limits');
   }
   return resized;
+}
+
+async function tryResizeWithBunImage(
+  content: Buffer,
+  mimeType: string,
+  policy: ImageResizePolicy,
+): Promise<Buffer | undefined> {
+  try {
+    return await resizeWithBunImage(content, mimeType, policy);
+  } catch {
+    // Bun.Image is an optimization lane, not the compatibility authority.
+    // Bun 1.3.14, for example, can read CMYK JPEG metadata but fail during
+    // pixel decode. Fall through to sharp so previously supported inputs keep
+    // working on hosts where its native addon is available.
+    return undefined;
+  }
 }
 
 function getDimensions(metadata: Metadata): ImageDimensions {
@@ -302,7 +323,14 @@ export async function resizeImageIfNeeded(
     // Animated PNG stays on the sharp path because Bun.Image is a single-frame
     // pipeline for the formats where animation fidelity is not guaranteed.
     if (canUseBunImageResize(content, mimeType)) {
-      return await resizeWithBunImage(content, mimeType, policy);
+      const bunResized = await tryResizeWithBunImage(
+        content,
+        mimeType,
+        policy,
+      );
+      if (bunResized !== undefined) {
+        return bunResized;
+      }
     }
 
     // Keep sharp as the compatibility/fidelity path for animated and other

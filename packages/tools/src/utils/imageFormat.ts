@@ -31,12 +31,18 @@ async function transcodeBmpWithBun(
   if (typeof Bun === 'undefined' || typeof Bun.Image !== 'function') {
     return undefined;
   }
-  const image = new Bun.Image(content);
-  const metadata = await image.metadata();
-  if (metadata.format !== 'bmp') {
-    throw new Error(`decoded BMP container was ${metadata.format}`);
+  try {
+    const image = new Bun.Image(content);
+    const metadata = await image.metadata();
+    if (metadata.format !== 'bmp') {
+      return undefined;
+    }
+    return Buffer.from(await image.png().bytes());
+  } catch {
+    // Bun.Image is a fast path. The bundled BMP validator/decoder plus sharp
+    // remains the compatibility fallback when Bun cannot complete the decode.
+    return undefined;
   }
-  return Buffer.from(await image.png().bytes());
 }
 
 async function encodeRawRgbAsPng(image: {
