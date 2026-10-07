@@ -215,6 +215,47 @@ describe('buildCommandToExecute on Windows', () => {
   });
 });
 
+describe('ShellTool schema output filters', () => {
+  function properties(): unknown {
+    return getObjectProperty(
+      createShellTool().schema.parametersJsonSchema,
+      'properties',
+    );
+  }
+
+  it('exposes focused output controls to the model', () => {
+    mockPlatform.mockReturnValue('darwin');
+    const props = properties();
+
+    const grepPattern = getObjectProperty(props, 'grep_pattern');
+    expect(getObjectProperty(grepPattern, 'type')).toBe('string');
+
+    const headLines = getObjectProperty(props, 'head_lines');
+    expect(getObjectProperty(headLines, 'type')).toBe('number');
+    expect(getObjectProperty(headLines, 'minimum')).toBe(1);
+
+    const tailLines = getObjectProperty(props, 'tail_lines');
+    expect(getObjectProperty(tailLines, 'type')).toBe('number');
+    expect(getObjectProperty(tailLines, 'minimum')).toBe(1);
+  });
+
+  it('advertises only grep flags the in-process filter actually implements', () => {
+    mockPlatform.mockReturnValue('darwin');
+    const grepFlags = getObjectProperty(properties(), 'grep_flags');
+    expect(getObjectProperty(grepFlags, 'type')).toBe('array');
+    const items = getObjectProperty(grepFlags, 'items');
+    expect(getObjectProperty(items, 'enum')).toStrictEqual(['-i', '-v']);
+  });
+
+  it('tells the model to use filters for noisy commands', () => {
+    mockPlatform.mockReturnValue('darwin');
+    const description = createShellTool().schema.description ?? '';
+    expect(description).toContain('grep_pattern');
+    expect(description).toContain('head_lines/tail_lines');
+    expect(description).toContain('exit status');
+  });
+});
+
 describe('ShellTool schema is_background property', () => {
   it('exposes is_background as a boolean with the managed job contract on non-Windows', () => {
     mockPlatform.mockReturnValue('darwin');

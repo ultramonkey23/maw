@@ -120,6 +120,36 @@ describe('Shell Tool Group Behavioral Tests @plan:PLAN-20260608-ISSUE1585.P10', 
       expect(result.returnDisplay).toContain('hello');
     });
 
+    it('filters noisy command output before returning it to the model', async () => {
+      const responses = new Map<string, ShellResult>();
+      responses.set('echo filtered', {
+        stdout:
+          'setup complete\nWARN first\nPASS unit\nwarn second\nPASS integration\n',
+        stderr: '',
+        exitCode: 0,
+        aborted: false,
+      });
+
+      const result = await executeToolForBehavioralAssertion(
+        new ShellTool(
+          createFakeShellService(responses),
+          createFakeMessageBus(ToolConfirmationOutcome.ProceedOnce),
+        ),
+        {
+          command: 'echo filtered',
+          grep_pattern: 'warn',
+          grep_flags: ['-i'],
+          tail_lines: 1,
+        },
+      );
+
+      const llm = String(result.llmContent);
+      expect(llm).toContain('warn second');
+      expect(llm).not.toContain('WARN first');
+      expect(llm).not.toContain('PASS unit');
+      expect(llm).toContain('Exit Code: 0');
+    });
+
     it('returns ToolResult with error content for failed command', async () => {
       const responses = new Map<string, ShellResult>();
       responses.set('false', {

@@ -717,12 +717,13 @@ export function tryResolvePgidFromPs(pid: number): number | null {
 }
 
 export function getShellToolDescription(): string {
+  const filteringInfo = '\n\n      For noisy commands, use grep_pattern and/or head_lines/tail_lines to return only relevant output to the model while preserving the real command exit status.';
   const returnedInfo = `\n\n      The following information is returned:\n\n      Command: Executed command.\n      Directory: Directory (relative to project root) where command was executed, or \`(root)\`.\n      Stdout: Output on stdout stream. Can be \`(empty)\` or partial on error and for any unwaited background processes.\n      Stderr: Output on stderr stream. Can be \`(empty)\` or partial on error and for any unwaited background processes.\n      Error: Error or \`(none)\` if no error was reported for the subprocess.\n      Exit Code: Exit code or \`(none)\` if terminated by signal.\n      Signal: Signal number or \`(none)\` if no signal was received.\n      Background PIDs: List of background processes started or \`(none)\`.\n      Process Group PGID: Process group started or \`(none)\``;
 
   if (os.platform() === 'win32') {
     return `This tool executes a given shell command using PowerShell (\`powershell.exe\` or \`pwsh\`) with \`-NoProfile -Command <command>\`. Use PowerShell-compatible syntax: quote paths containing spaces with single quotes (for example, \`New-Item -ItemType Directory -Force -Path 'C:\\My Folder'\`) and represent an apostrophe inside a single-quoted path with two single quotes. Independent background processes can be started with \`Start-Process\`. When \`is_background\` is true the command is launched as a managed background job via \`Start-Process\` and the tool returns immediately with a stable job id; use \`check_async_tasks\` to inspect output or cancel the job. A managed background job can also be terminated with \`taskkill /T /F /PID <pid>\` where \`<pid>\` is the job's process id (available from \`check_async_tasks\` with \`action: 'peek'\`).${returnedInfo}`;
   }
-  return `This tool executes a given shell command as \`bash -c <command>\`. Command can start background processes using \`&\`: a trailing \`&\` is detected via AST parsing and the command is launched as a managed background job with a stable job id (use check_async_tasks to inspect or cancel it). Command is executed as a subprocess that leads its own process group. Command process group can be terminated as \`kill -- -PGID\` or signaled as \`kill -s SIGNAL -- -PGID\`. Note: a command that daemonizes (e.g. setsid or double-fork) escapes the process group and cannot be stopped by job cancellation.${returnedInfo}`;
+  return `This tool executes a given shell command as \`bash -c <command>\`. Command can start background processes using \`&\`: a trailing \`&\` is detected via AST parsing and the command is launched as a managed background job with a stable job id (use check_async_tasks to inspect or cancel it). Command is executed as a subprocess that leads its own process group. Command process group can be terminated as \`kill -- -PGID\` or signaled as \`kill -s SIGNAL -- -PGID\`. Note: a command that daemonizes (e.g. setsid or double-fork) escapes the process group and cannot be stopped by job cancellation.${filteringInfo}${returnedInfo}`;
 }
 
 export function getCommandDescription(): string {
@@ -749,12 +750,8 @@ export function getBackgroundParamDescription(): string {
 }
 
 /** JSON Schema for the run_shell_command tool parameters. */
-export function buildShellSchema(): {
-  type: 'object';
-  properties: Record<string, { type: string; description: string }>;
-  required: string[];
-} {
-  const properties: Record<string, { type: string; description: string }> = {
+export function buildShellSchema() {
+  const properties: Record<string, unknown> = {
     command: {
       type: 'string',
       description: getCommandDescription(),
@@ -773,6 +770,39 @@ export function buildShellSchema(): {
       type: 'string',
       description:
         'Alternative parameter name for dir_path (for backward compatibility).',
+    },
+    grep_pattern: {
+      type: 'string',
+      minLength: 1,
+      description:
+        '(OPTIONAL) Filter completed command output before it is returned to the model. ' +
+        'The value is a JavaScript regular expression applied line-by-line. ' +
+        'Use this for focused test/build diagnostics instead of returning unrelated output.',
+    },
+    grep_flags: {
+      type: 'array',
+      items: {
+        type: 'string',
+        enum: ['-i', '-v'],
+      },
+      uniqueItems: true,
+      description:
+        '(OPTIONAL) Model-facing grep flags. -i makes grep_pattern case-insensitive; ' +
+        '-v returns non-matching lines. Only use with grep_pattern.',
+    },
+    head_lines: {
+      type: 'number',
+      minimum: 1,
+      description:
+        '(OPTIONAL) Return only the first N lines after grep filtering. ' +
+        'Use when the beginning of command output contains the useful diagnostics.',
+    },
+    tail_lines: {
+      type: 'number',
+      minimum: 1,
+      description:
+        '(OPTIONAL) Return only the last N lines after grep filtering. ' +
+        'Prefer this for compilers, tests, builds, and git commands whose final lines contain the result.',
     },
     timeout_seconds: {
       type: 'number',
