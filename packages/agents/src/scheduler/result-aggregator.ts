@@ -27,7 +27,9 @@ import {
   extractModelFacingErrorText,
 } from '@vybestack/llxprt-code-core/utils/generateContentResponseUtilities.js';
 import {
-  DEFAULT_MAX_TOKENS,
+  ESCAPE_BUFFER_PERCENTAGE,
+  estimateTokens,
+  getOutputLimits,
   type ToolOutputSettingsProvider,
 } from '@vybestack/llxprt-code-core/utils/toolOutputLimiter.js';
 import { DebugLogger } from '@vybestack/llxprt-code-core/debug/index.js';
@@ -65,6 +67,30 @@ interface BufferedEntry {
   isCancelled?: boolean;
 }
 
+interface BatchOutputBudget {
+  readonly baseEphemeral: Record<string, unknown>;
+  remainingTokens: number;
+}
+
+function estimateModelFacingToolTokens(
+  responseParts: ToolCallResponseInfo['responseParts'],
+): number {
+  let total = 0;
+  for (const part of responseParts) {
+    if (part.type !== 'tool_response') continue;
+    const result = part.result;
+    if (typeof result !== 'object' || result === null) continue;
+    const record = result as Record<string, unknown>;
+    for (const key of ['output', 'error'] as const) {
+      const value = record[key];
+      if (typeof value === 'string' && value.length > 0) {
+        total += estimateTokens(value);
+      }
+    }
+  }
+  return total;
+}
+
 // ---- ResultAggregator -------------------------------------------------------
 function hasTruthyTruncateMode(ephemeral: Record<string, unknown>): boolean {
   const value = ephemeral['tool-output-truncate-mode'];
@@ -87,10 +113,13 @@ export class ResultAggregator {
   /** Total tools in the current batch; set by {@link beginBatch}. */
   private currentBatchSize = 0;
   /**
-   * Per-tool output config derived by dividing the batch token budget equally.
-   * Undefined when the batch has ≤ 1 tool.
+   * Invocation-local batch token budget.
+   *
+   * undefined = not initialized for the current batch yet
+   * null      = no batch limiter (single tool or canonical limit disabled)
+   * object    = limited budget whose unused capacity rolls forward
    */
-  private batchOutputConfig: ToolOutputSettingsProvider | undefined = undefined;
+  private batchOutputBudget: BatchOutputBudget | null | undefined = undefined;
   /** Reentrancy guard for {@link publishBufferedResults}. */
   private isPublishingBufferedResults = false;
   /** Set when a second publish is requested during an active publish pass. */
@@ -180,7 +209,7 @@ export class ResultAggregator {
    */
   beginBatch(size: number): void {
     this.currentBatchSize = size;
-    this.applyBatchOutputLimits(size);
+    this.initializeBatchOutputBudget(size);
   }
 
   // ---- publishing ----------------------------------------------------------
@@ -226,7 +255,7 @@ export class ResultAggregator {
     this.currentBatchSize = 0;
     this.isPublishingBufferedResults = false;
     this.pendingPublishRequest = false;
-    this.batchOutputConfig = undefined;
+    this.batchOutputBudget = undefined;
   }
 
   // ---- private helpers -----------------------------------------------------
@@ -260,6 +289,9 @@ export class ResultAggregator {
 
     const recovered = Math.min(maxIndex + 1, this.pendingResults.size);
     this.currentBatchSize = recovered > 0 ? recovered : 1;
+    if (this.batchOutputBudget === undefined) {
+      this.initializeBatchOutputBudget(this.currentBatchSize);
+    }
 
     if (logger.enabled) {
       logger.debug(
@@ -279,7 +311,7 @@ export class ResultAggregator {
       this.nextPublishIndex = 0;
       this.currentBatchSize = 0;
       this.pendingResults.clear();
-      this.batchOutputConfig = undefined;
+      this.batchOutputBudget = undefined;
     }
   }
 
@@ -344,8 +376,7 @@ export class ResultAggregator {
   ): Promise<void> {
     const { result, callId, toolName, scheduledCall } = buffered;
 
-    const outputConfig =
-      this.batchOutputConfig ?? this.callbacks.getFallbackOutputConfig();
+    const outputConfig = this.outputConfigForNextResult();
 
     if (result.error === undefined) {
       const responseParts = convertToFunctionResponse(
@@ -370,6 +401,8 @@ export class ResultAggregator {
         }),
       };
 
+      this.chargeBatchBudget(responseParts);
+
       logger.debug(
         `callId=${callId}, toolName=${toolName}, returnDisplay type=${typeof result.returnDisplay}, hasValue=${Boolean(result.returnDisplay)}`,
       );
@@ -383,21 +416,23 @@ export class ResultAggregator {
         result.error.type,
         extractModelFacingErrorText(result.llmContent, toolName, outputConfig),
       );
+      this.chargeBatchBudget(errorResponse.responseParts);
       this.callbacks.setError(callId, errorResponse);
     }
   }
 
   /**
-   * Apply batch-level output limits for parallel tool batches. (#1301)
+   * Initialize batch-level output budgeting for parallel tool batches.
    *
-   * `tool-output-max-tokens` is treated as a budget for the entire batch.
-   * For batches of 2+ tools this method divides the budget equally and stores
-   * the reduced per-tool limit in {@link batchOutputConfig}, which
-   * {@link publishResult} picks up when building function-response parts.
+   * The canonical output-limit parser owns disabled/default semantics. A
+   * limited batch starts with the configured budget intact; each result gets a
+   * fair share of the *remaining* budget over the slots still unpublished.
+   * Actual model-facing output is charged back after publication, so unused
+   * capacity circulates forward instead of being stranded in an equal slice.
    */
-  private applyBatchOutputLimits(batchSize: number): void {
+  private initializeBatchOutputBudget(batchSize: number): void {
     if (batchSize <= 1) {
-      this.batchOutputConfig = undefined;
+      this.batchOutputBudget = null;
       return;
     }
 
@@ -407,41 +442,94 @@ export class ResultAggregator {
         typeof fallback.getEphemeralSettings === 'function'
           ? fallback.getEphemeralSettings()
           : {};
+      const { tokenLimit } = getOutputLimits(fallback);
 
-      const maxBatchTokens =
-        (ephemeral['tool-output-max-tokens'] as number | undefined) ??
-        DEFAULT_MAX_TOKENS;
+      if (tokenLimit.kind === 'disabled') {
+        this.batchOutputBudget = null;
+        if (logger.enabled) {
+          logger.debug(
+            () =>
+              `Batch of ${batchSize} tools: tool output token limiting is disabled.`,
+          );
+        }
+        return;
+      }
 
-      const perToolBudget = Math.max(
-        1000,
-        Math.floor(maxBatchTokens / batchSize),
-      );
+      this.batchOutputBudget = {
+        baseEphemeral: ephemeral,
+        remainingTokens: tokenLimit.maxTokens,
+      };
 
       if (logger.enabled) {
         logger.debug(
           () =>
-            `Batch of ${batchSize} tools: applying per-tool output limit ` +
-            `of ${perToolBudget} tokens (batch budget: ${maxBatchTokens}).`,
+            `Batch of ${batchSize} tools: initialized circulating output budget ` +
+            `of ${tokenLimit.maxTokens} tokens.`,
         );
       }
-
-      this.batchOutputConfig = {
-        getEphemeralSettings: () => ({
-          ...ephemeral,
-          'tool-output-max-tokens': perToolBudget,
-          ...(hasTruthyTruncateMode(ephemeral)
-            ? {}
-            : { 'tool-output-truncate-mode': 'truncate' }),
-        }),
-      };
     } catch (error) {
       if (logger.enabled) {
         logger.debug(
           () =>
-            `Failed to compute batch output limits; skipping budget guard: ${error}`,
+            `Failed to initialize batch output budget; skipping batch guard: ${error}`,
         );
       }
-      this.batchOutputConfig = undefined;
+      this.batchOutputBudget = null;
     }
+  }
+
+  private outputConfigForNextResult(): ToolOutputSettingsProvider {
+    const budget = this.batchOutputBudget;
+    if (!budget) {
+      return this.callbacks.getFallbackOutputConfig();
+    }
+
+    const slotsRemaining = Math.max(
+      1,
+      this.currentBatchSize - this.nextPublishIndex,
+    );
+    const fairShare = Math.max(
+      1,
+      Math.floor(budget.remainingTokens / slotsRemaining),
+    );
+
+    if (logger.enabled) {
+      logger.debug(
+        () =>
+          `Publishing batch slot ${this.nextPublishIndex + 1}/${this.currentBatchSize}: ` +
+          `fair-share limit ${fairShare} from ${budget.remainingTokens} remaining tokens.`,
+      );
+    }
+
+    return {
+      getEphemeralSettings: () => ({
+        ...budget.baseEphemeral,
+        'tool-output-max-tokens': fairShare,
+        ...(hasTruthyTruncateMode(budget.baseEphemeral)
+          ? {}
+          : { 'tool-output-truncate-mode': 'truncate' }),
+      }),
+    };
+  }
+
+  private chargeBatchBudget(
+    responseParts: ToolCallResponseInfo['responseParts'],
+  ): void {
+    const budget = this.batchOutputBudget;
+    if (!budget) return;
+
+    const modelFacingTokens = estimateModelFacingToolTokens(responseParts);
+    if (modelFacingTokens <= 0) return;
+
+    // toolOutputLimiter reserves 20% for JSON/string escaping. Convert the
+    // actual model-facing payload back into the same configured-budget units
+    // before returning unused capacity to later results.
+    const consumedBudget = Math.ceil(
+      modelFacingTokens / ESCAPE_BUFFER_PERCENTAGE,
+    );
+    budget.remainingTokens = Math.max(
+      0,
+      budget.remainingTokens - consumedBudget,
+    );
   }
 }
