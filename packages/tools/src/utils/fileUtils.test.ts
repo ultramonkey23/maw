@@ -245,6 +245,21 @@ describe('fileUtils.detectFileType', () => {
     },
   );
 
+
+  it('reuses one file handle for unverified media fallback classification', async () => {
+    const filePath = path.join(tempRootDir, 'spoofed.png');
+    actualNodeFs.writeFileSync(filePath, 'console.log("still text");');
+    mockMimeLookup.mockReturnValueOnce('image/png');
+    const openSpy = vi.spyOn(actualNodeFs.promises, 'open');
+
+    try {
+      expect(await detectFileType(filePath)).toBe('text');
+      expect(openSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      openSpy.mockRestore();
+    }
+  });
+
   it('should classify binary content with unverified signature as binary (#2723)', async () => {
     const filePath = path.join(tempRootDir, 'mystery.png');
     actualNodeFs.writeFileSync(
