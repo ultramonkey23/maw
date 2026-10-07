@@ -56,16 +56,20 @@ describe('read_many_files preflight classification reuse', () => {
     );
     const start = source.indexOf('export async function runPreReadGates(');
     expect(start).toBeGreaterThanOrEqual(0);
-    const functionSource = source.slice(start);
+    const endMarker =
+      "return { outcome: 'proceed', resizeBeforeOutputLimit };\n}";
+    const end = source.indexOf(endMarker, start);
+    expect(end).toBeGreaterThan(start);
+    const functionSource = source.slice(start, end + endMarker.length);
     const classificationCalls =
       functionSource.match(/detectFileType\(filePath\)/g) ?? [];
 
     expect(classificationCalls).toHaveLength(1);
-    expect(functionSource).toContain(
-      'shouldResizeExplicitImage(\n    filePath,\n    inputPatterns,\n    hasResizePolicy,\n    detectedFileType,',
+    expect(functionSource).toMatch(
+      /shouldResizeExplicitImage\(\s*filePath,\s*inputPatterns,\s*hasResizePolicy,\s*detectedFileType,/,
     );
-    expect(functionSource).toContain(
-      'checkAssetFileRequested(\n      filePath,\n      relativePathForDisplay,\n      inputPatterns,\n      skippedFiles,\n      detectedFileType,',
+    expect(functionSource).toMatch(
+      /checkAssetFileRequested\(\s*filePath,\s*relativePathForDisplay,\s*inputPatterns,\s*skippedFiles,\s*detectedFileType,/,
     );
   });
 });
