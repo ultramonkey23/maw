@@ -1,13 +1,15 @@
 # Copyright 2026 Ultramonkeydog. SPDX-License-Identifier: Apache-2.0
 param(
-  [string]$BinDir = (Join-Path $HOME '.local\bin')
+  [string]$BinDir = (Join-Path $HOME '.local\bin'),
+  [switch]$NoUserPathUpdate
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $cliBin = Join-Path $repoRoot 'packages\cli\bin'
-$node = (Get-Command node -ErrorAction Stop).Source
+$node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
 $managedMarker = 'MAW managed launcher'
+$BinDir = [IO.Path]::GetFullPath($BinDir)
 
 $launchers = [ordered]@{
   'maw' = 'maw.mjs'
@@ -21,6 +23,52 @@ foreach ($entry in $launchers.GetEnumerator()) {
   }
 }
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+
+function Normalize-PathEntry {
+  param([string]$PathEntry)
+  if ([string]::IsNullOrWhiteSpace($PathEntry)) { return $null }
+  $expanded = [Environment]::ExpandEnvironmentVariables($PathEntry.Trim().Trim('"'))
+  try {
+    return [IO.Path]::GetFullPath($expanded).TrimEnd([char[]]@('\', '/'))
+  } catch {
+    return $expanded.TrimEnd([char[]]@('\', '/'))
+  }
+}
+
+function Test-PathContainsDirectory {
+  param([string]$PathValue, [string]$Directory)
+  $wanted = Normalize-PathEntry -PathEntry $Directory
+  foreach ($entry in ($PathValue -split ';')) {
+    $normalized = Normalize-PathEntry -PathEntry $entry
+    if ($null -ne $normalized -and [string]::Equals($normalized, $wanted, [StringComparison]::OrdinalIgnoreCase)) {
+      return $true
+    }
+  }
+  return $false
+}
+
+function Ensure-LauncherPath {
+  param([string]$Directory)
+
+  if (-not $NoUserPathUpdate) {
+    $userPath = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User)
+    if (-not (Test-PathContainsDirectory -PathValue $userPath -Directory $Directory)) {
+      $newUserPath = if ([string]::IsNullOrWhiteSpace($userPath)) {
+        $Directory
+      } else {
+        "$Directory;$userPath"
+      }
+      [Environment]::SetEnvironmentVariable('Path', $newUserPath, [EnvironmentVariableTarget]::User)
+      Write-Output "Added $Directory to the persistent user PATH"
+    }
+  } else {
+    Write-Output "Skipped persistent user PATH update for $Directory"
+  }
+
+  if (-not (Test-PathContainsDirectory -PathValue $env:Path -Directory $Directory)) {
+    $env:Path = if ([string]::IsNullOrWhiteSpace($env:Path)) { $Directory } else { "$Directory;$env:Path" }
+  }
+}
 
 function Get-LauncherState {
   param([string]$Path)
@@ -88,6 +136,16 @@ function Clone-MissingLabPeer {
   }
 }
 
+function Assert-LauncherResolution {
+  param([string]$Name)
+  $expected = [IO.Path]::GetFullPath((Join-Path $BinDir "$Name.cmd"))
+  $command = Get-Command $Name -CommandType Application -ErrorAction Stop
+  $resolved = [IO.Path]::GetFullPath($command.Source)
+  if (-not [string]::Equals($resolved, $expected, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "$Name resolves to $resolved instead of $expected"
+  }
+}
+
 Install-OrPreserveLauncher -Name 'maw' -EntryFile 'maw.mjs'
 Clone-MissingLabPeer
 Install-OrPreserveLauncher -Name 'maw-lab' -EntryFile 'maw-lab.mjs'
@@ -101,4 +159,11 @@ if ((Test-Path -LiteralPath $mawLabPath) -and (Test-Path -LiteralPath $labMawPat
   }
 }
 
-Write-Output "MAW commands ready: maw, maw-lab, lab-maw"
+Ensure-LauncherPath -Directory $BinDir
+Assert-LauncherResolution -Name 'maw'
+Assert-LauncherResolution -Name 'maw-lab'
+Assert-LauncherResolution -Name 'lab-maw'
+Write-Output "MAW commands ready from any working directory: maw, maw-lab, lab-maw ($BinDir)"
+if (-not $NoUserPathUpdate) {
+  Write-Output 'The user PATH is persistent for future shells. If this installer was launched in a child PowerShell, open a fresh terminal/session before invoking MAW by name.'
+}
