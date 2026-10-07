@@ -71,10 +71,21 @@ the caller's working directory.
 
 `maw-lab` and `lab-maw` are the same Lab-attached mode. They look for a Lab
 checkout with `AGENTS.md`, `labctl`, and
-`tools/lab_mcp_server.py`. It checks `MAW_LAB_ROOT` when set, then Termux home,
-the desktop home sibling `ultramonkeydog-lab`, and ancestors of the current
-directory. Set `MAW_LAB_ROOT` for another layout and `MAW_LAB_PYTHON` if the
-Python executable is not `python`.
+`tools/lab_mcp_server.py`. An explicit `MAW_LAB_ROOT` is authoritative: if it
+does not identify a real Lab checkout, MAW does not silently attach a different
+one. Without that override, an invocation whose cwd is itself a Lab root wins
+first, matching the Lab's canonical path resolver. Next come the Lab's existing
+`ULTRAMONKEYDOG_LAB_ROOT`, `LAB_ROOT`, and `LAB_DIR` environment signals;
+cwd ancestors are only fallback discovery after those canonical hints, followed
+by Termux home and desktop `$HOME/ultramonkeydog-lab`. This lets `lab-maw`
+attach from an unrelated project without requiring a second MAW-only path
+configuration when the Lab environment is already established, while avoiding a
+stale ancestor checkout silently outranking the canonical Lab root.
+
+`MAW_LAB_PYTHON` remains the explicit interpreter override. Otherwise MAW
+checks for an actually runnable interpreter: Windows follows the Lab launcher's
+`py -3`, `python`, then `python3` preference; POSIX/Termux tries `python`
+then `python3`.
 
 The Lab MCP server starts with an absolute script path and its own working
 directory while MAW preserves the caller's current repository as the coding
