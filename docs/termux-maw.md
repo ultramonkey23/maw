@@ -98,15 +98,21 @@ cd "$HOME/repos/maw"
 sh scripts/install-maw-termux-launchers.sh
 ```
 
-The installer creates `$HOME/bin/maw`, `$HOME/bin/maw-lab`, and
-`$HOME/bin/lab-maw`. Existing legacy or user-modified MAW launchers are
-preserved verbatim. If only one Lab name exists, its behavior is cloned to the
-missing alias so custom arguments survive the upgrade. Unrelated commands are
-never overwritten.
+The installer keeps using `$HOME/bin` when that directory is already on
+`PATH`, which preserves an established user-bin layout such as the reported
+`ultralab` setup. Otherwise it installs `maw`, `maw-lab`, and `lab-maw`
+into Termux's `$PREFIX/bin`, the executable directory Termux places on its
+default `PATH`. An explicit `MAW_BIN_DIR` override is accepted only when that
+directory is already discoverable on `PATH`.
 
-`$HOME/bin` must be on `PATH` (as it is for the reported `ultralab`
-launcher). All three shortcuts execute the repository launcher by absolute path
-without changing the caller's working directory.
+Existing legacy or user-modified MAW launchers are preserved verbatim. If only
+one Lab name exists, its behavior is cloned to the missing alias so custom
+arguments survive the upgrade. Unrelated commands are never overwritten. The
+installer finishes by checking `command -v` for all three names and fails if a
+different command shadows the launcher it just installed.
+
+All three shortcuts execute the repository launcher by absolute path without
+changing the caller's working directory.
 
 That means these are valid and keep the selected directory as MAW's workspace:
 
