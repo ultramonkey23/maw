@@ -157,7 +157,12 @@ function applyMawLabMode(
         join(root, 'tools', 'lab_mcp_server.py'),
       ],
       cwd: root,
-      env: { PYTHONIOENCODING: 'utf-8' },
+      env: {
+        PYTHONIOENCODING: 'utf-8',
+        // The Lab server owns its own checkout cwd, so carry MAW's coding
+        // workspace separately instead of forcing the server to infer it.
+        MAW_WORKSPACE_ROOT: process.cwd(),
+      },
       timeout: 600000,
       // This is an explicit private Lab attachment, not a public endpoint.
       // Workspace trust and Lab-owned effect authority remain separate.
