@@ -23,6 +23,12 @@ esac
 
 [ -f "$repo_root/packages/cli/index.ts" ] || fail "No MAW CLI source at $repo_root/packages/cli/index.ts"
 [ -f "$repo_root/scripts/dev-env.ts" ] || fail "Missing $repo_root/scripts/dev-env.ts"
+termux_bun_version_file="$repo_root/scripts/maw-termux-bun-version.txt"
+[ -f "$termux_bun_version_file" ] || fail "Missing Android Bun version source: $termux_bun_version_file"
+termux_bun_version=$(cat "$termux_bun_version_file")
+case "$termux_bun_version" in
+  ''|*[!0-9.]* ) fail "Invalid Android Bun version in $termux_bun_version_file: $termux_bun_version" ;;
+esac
 command -v node >/dev/null 2>&1 || fail 'Node.js 24+ is required.'
 node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' || fail 'Node.js 24+ is required.'
 
@@ -30,8 +36,9 @@ node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)
 # Never fall back to a generic glibc/musl ARM64 binary.
 bun_path=''
 for candidate in \
-  "$HOME/.local/share/maw/bun-1.3.14/bin/bun" \
+  "$HOME/.local/share/maw/bun-$termux_bun_version/bin/bun" \
   "$repo_root/node_modules/@oven/bun-linux-aarch64-android/bin/bun" \
+  "$HOME/.local/share/maw/bun-1.3.14/bin/bun" \
   "$repo_root/node_modules/bun/bin/bun.exe" \
   "$repo_root/node_modules/bun/bin/bun"
 do
