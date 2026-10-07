@@ -108,6 +108,17 @@ function hasTruthyTruncateMode(ephemeral: Record<string, unknown>): boolean {
 export class ResultAggregator {
   /** Pending tool results keyed by callId. */
   private readonly pendingResults = new Map<string, BufferedEntry>();
+  /**
+   * Secondary index over the same entries for ordered publication.
+   *
+   * executionIndex is assigned once by CoreToolScheduler, so publication can
+   * address the next result directly instead of rescanning every pending
+   * callId entry on each slot.
+   */
+  private readonly pendingResultsByExecutionIndex = new Map<
+    number,
+    BufferedEntry
+  >();
   /** The executionIndex of the next result to publish. */
   private nextPublishIndex = 0;
   /** Total tools in the current batch; set by {@link beginBatch}. */
@@ -137,13 +148,15 @@ export class ResultAggregator {
     result: ToolResult,
     executionIndex: number,
   ): void {
-    this.pendingResults.set(callId, {
+    const entry: BufferedEntry = {
       result,
       callId,
       toolName,
       scheduledCall,
       executionIndex,
-    });
+    };
+    this.pendingResults.set(callId, entry);
+    this.pendingResultsByExecutionIndex.set(executionIndex, entry);
   }
 
   /** Store an error result (ToolResult with `.error` set) for ordered publishing. */
@@ -162,13 +175,15 @@ export class ResultAggregator {
       llmContent: error.message,
       returnDisplay: error.message,
     };
-    this.pendingResults.set(callId, {
+    const entry: BufferedEntry = {
       result: errorResult,
       callId,
       toolName,
       scheduledCall,
       executionIndex,
-    });
+    };
+    this.pendingResults.set(callId, entry);
+    this.pendingResultsByExecutionIndex.set(executionIndex, entry);
   }
 
   /**
@@ -190,14 +205,16 @@ export class ResultAggregator {
       llmContent: 'Tool call cancelled by user.',
       returnDisplay: 'Cancelled',
     };
-    this.pendingResults.set(callId, {
+    const entry: BufferedEntry = {
       result: cancelledResult,
       callId,
       toolName: scheduledCall.request.name,
       scheduledCall,
       executionIndex,
       isCancelled: true,
-    });
+    };
+    this.pendingResults.set(callId, entry);
+    this.pendingResultsByExecutionIndex.set(executionIndex, entry);
   }
 
   // ---- batch initialisation ------------------------------------------------
@@ -251,6 +268,7 @@ export class ResultAggregator {
    */
   reset(): void {
     this.pendingResults.clear();
+    this.pendingResultsByExecutionIndex.clear();
     this.nextPublishIndex = 0;
     this.currentBatchSize = 0;
     this.isPublishingBufferedResults = false;
@@ -260,14 +278,9 @@ export class ResultAggregator {
 
   // ---- private helpers -----------------------------------------------------
 
-  /** Find a buffered entry by its executionIndex. */
+  /** Find a buffered entry by its executionIndex in O(1) average time. */
   private findByExecutionIndex(index: number): BufferedEntry | undefined {
-    for (const entry of this.pendingResults.values()) {
-      if (entry.executionIndex === index) {
-        return entry;
-      }
-    }
-    return undefined;
+    return this.pendingResultsByExecutionIndex.get(index);
   }
 
   /**
@@ -281,9 +294,9 @@ export class ResultAggregator {
     }
 
     let maxIndex = -1;
-    for (const entry of this.pendingResults.values()) {
-      if (entry.executionIndex > maxIndex) {
-        maxIndex = entry.executionIndex;
+    for (const executionIndex of this.pendingResultsByExecutionIndex.keys()) {
+      if (executionIndex > maxIndex) {
+        maxIndex = executionIndex;
       }
     }
 
@@ -311,6 +324,7 @@ export class ResultAggregator {
       this.nextPublishIndex = 0;
       this.currentBatchSize = 0;
       this.pendingResults.clear();
+      this.pendingResultsByExecutionIndex.clear();
       this.batchOutputBudget = undefined;
     }
   }
@@ -330,6 +344,7 @@ export class ResultAggregator {
       }
 
       this.pendingResults.delete(nextBuffered.callId);
+      this.pendingResultsByExecutionIndex.delete(nextBuffered.executionIndex);
       this.nextPublishIndex++;
     }
 
