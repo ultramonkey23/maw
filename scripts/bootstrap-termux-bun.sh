@@ -17,7 +17,12 @@ case "$(uname -m)" in
 esac
 command -v npm >/dev/null 2>&1 || fail 'npm is required.'
 
-version=1.3.14
+version_file="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)/maw-termux-bun-version.txt"
+[ -f "$version_file" ] || fail "Missing Android Bun version source: $version_file"
+version=$(cat "$version_file")
+case "$version" in
+  ''|*[!0-9.]* ) fail "Invalid Android Bun version in $version_file: $version" ;;
+esac
 pkg="@oven/bun-linux-aarch64-android@$version"
 target="$HOME/.local/share/maw/bun-$version"
 binary="$target/bin/bun"
