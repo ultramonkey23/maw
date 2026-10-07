@@ -48,10 +48,13 @@ export function extractCacheMetrics(
     ].find((value) => value !== 0 && !Number.isNaN(value)) ?? 0;
 
   const cacheCreationTokens = legacyFallback(
+    hasProperty(usage, 'prompt_tokens_details') &&
+      hasProperty(usage.prompt_tokens_details, 'cache_write_tokens')
+      ? toNumber(usage.prompt_tokens_details.cache_write_tokens)
+      : 0,
     hasProperty(usage, 'cache_creation_input_tokens')
       ? toNumber(usage.cache_creation_input_tokens)
       : 0,
-    0,
   );
 
   const cacheMissTokens = legacyFallback(

@@ -18,6 +18,23 @@ describe('extractCacheMetrics', () => {
         cacheMissTokens: 0,
       });
     });
+
+    it('extracts OpenRouter cache_write_tokens from prompt_tokens_details', () => {
+      const usage = {
+        prompt_tokens_details: {
+          cached_tokens: 125,
+          cache_write_tokens: 75,
+        },
+      };
+
+      const result = extractCacheMetrics(usage);
+
+      expect(result).toStrictEqual({
+        cachedTokens: 125,
+        cacheCreationTokens: 75,
+        cacheMissTokens: 0,
+      });
+    });
   });
 
   describe('Kimi format', () => {
