@@ -10,6 +10,7 @@ import {
   getImageSourceSizeLimit,
   isAssetExplicitlyRequested,
   shouldResizeExplicitImage,
+  type DetectedFileType,
 } from './fileUtils.js';
 import { getErrorMessage } from './errors.js';
 import {
@@ -55,8 +56,9 @@ export async function checkAssetFileRequested(
   relativePathForDisplay: string,
   inputPatterns: readonly string[],
   skippedFiles: Array<{ path: string; reason: string }>,
+  detectedFileType?: DetectedFileType,
 ): Promise<'skip' | 'continue'> {
-  const ft = await detectFileType(filePath);
+  const ft = detectedFileType ?? (await detectFileType(filePath));
   const isAsset = ft === 'image' || ft === 'pdf' || ft === 'audio';
   if (!isAsset || isAssetExplicitlyRequested(filePath, inputPatterns))
     return 'continue';
@@ -105,10 +107,14 @@ export async function runPreReadGates(
   imageBudget: ImageDimensionBudget | undefined,
   hasResizePolicy: boolean,
 ): Promise<PreReadGateResult> {
+  // Classify once for the whole pre-read gate sequence. For non-TypeScript
+  // text files this may sample the file contents, so repeating detection across
+  // image/resize/asset checks turns one logical preflight into multiple reads.
+  const detectedFileType = await detectFileType(filePath);
   const pf = await checkImageBudgetPreflightForFile(
     filePath,
     imageBudget,
-    (await detectFileType(filePath)) === 'image',
+    detectedFileType === 'image',
     isAssetExplicitlyRequested(filePath, inputPatterns),
     relativePathForDisplay,
   );
@@ -122,6 +128,7 @@ export async function runPreReadGates(
     filePath,
     inputPatterns,
     hasResizePolicy,
+    detectedFileType,
   );
   if (
     (await checkFileSizeLimit(
@@ -135,6 +142,7 @@ export async function runPreReadGates(
       relativePathForDisplay,
       inputPatterns,
       skippedFiles,
+      detectedFileType,
     )) === 'skip'
   ) {
     return { outcome: 'skip' };
