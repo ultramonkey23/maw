@@ -247,6 +247,41 @@ describe('ResultAggregator', () => {
       ).mock.calls.map((args: unknown[]) => args[0]);
       expect(ids).toStrictEqual(['c0', 'c1']);
     });
+
+
+    it('publishes a large reverse-arrival batch in execution order', async () => {
+      const base: ToolOutputSettingsProvider = {
+        getEphemeralSettings: () => ({ 'tool-output-max-tokens': false }),
+      };
+      (
+        callbacks.getFallbackOutputConfig as ReturnType<typeof vi.fn>
+      ).mockReturnValue(base);
+
+      const batchSize = 1024;
+      agg.beginBatch(batchSize);
+      for (let i = batchSize - 1; i >= 0; i--) {
+        const call = makeScheduledCall(`c${i}`);
+        agg.bufferResult(
+          call.request.callId,
+          'tool',
+          call,
+          makeSuccessResult(`r${i}`),
+          i,
+        );
+      }
+
+      await agg.publishBufferedResults(makeAbortSignal());
+
+      const ids = (
+        callbacks.setSuccess as ReturnType<typeof vi.fn>
+      ).mock.calls.map((args: unknown[]) => args[0]);
+      expect(ids).toHaveLength(batchSize);
+      expect(ids[0]).toBe('c0');
+      expect(ids[batchSize - 1]).toBe(`c${batchSize - 1}`);
+      for (let i = 0; i < batchSize; i++) {
+        expect(ids[i]).toBe(`c${i}`);
+      }
+    });
   });
 
   // ---------- publishBufferedResults — reentrancy guard ---------------------
