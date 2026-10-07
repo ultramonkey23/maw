@@ -391,7 +391,7 @@
     "@oven/bun-freebsd-aarch64": "1.3.14",
     "@oven/bun-freebsd-x64": "1.3.14",
     "@oven/bun-linux-aarch64": "1.3.14",
-    "@oven/bun-linux-aarch64-android": "1.3.14",
+    "@oven/bun-linux-aarch64-android": "1.4.2",
     "@oven/bun-linux-aarch64-musl": "1.3.14",
     "@oven/bun-linux-x64": "1.3.14",
     "@oven/bun-linux-x64-android": "1.3.14",
