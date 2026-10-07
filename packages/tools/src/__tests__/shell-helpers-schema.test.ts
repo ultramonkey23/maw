@@ -13,6 +13,7 @@ import type {
 import {
   buildCommandToExecute,
   singleQuoteForShell,
+  validateGrepFlags,
 } from '../tools/shell-helpers.js';
 
 const { mockPlatform } = {
@@ -245,6 +246,13 @@ describe('ShellTool schema output filters', () => {
     expect(getObjectProperty(grepFlags, 'type')).toBe('array');
     const items = getObjectProperty(grepFlags, 'items');
     expect(getObjectProperty(items, 'enum')).toStrictEqual(['-i', '-v']);
+  });
+
+  it('rejects grep flags the in-process filter does not implement', () => {
+    expect(() => validateGrepFlags(['-i', '-v'])).not.toThrow();
+    for (const flag of ['-E', '-F', '-x', '-w']) {
+      expect(() => validateGrepFlags([flag])).toThrow('Invalid grep flag');
+    }
   });
 
   it.each(['darwin', 'win32'] as const)(
