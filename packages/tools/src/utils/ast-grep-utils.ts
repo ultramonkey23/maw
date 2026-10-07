@@ -2,33 +2,50 @@
  * Shared AST-grep utilities for all tools that use @ast-grep/napi.
  * Single source of truth for language mapping, parsing, and error normalization.
  *
- * Native grammar addons load LAZILY on first real parse/search use (issue #2399).
- * Importing this module performs no native dlopen, so credential-proxy / startup
- * paths that only need a constant are never forced to load @ast-grep native code.
- * A native load failure (e.g. Windows Smart App Control OS error 4551) degrades
- * gracefully instead of crashing.
+ * Native core and grammar addons load on first real AST operation.
+ * Importing this module performs no native dlopen, so CLI startup and language
+ * mapping remain available even if @ast-grep/napi has no Android binding.
+ * parseSource and isAstGrepAvailable report missing core bindings safely.
  *
  * @plan PLAN-20260211-ASTGREP.P03
  */
 
-import {
-  Lang,
-  parse as napiParse,
-  findInFiles as napiFindInFiles,
-  registerDynamicLanguage,
-  type DynamicLangRegistrations,
+import { createRequire } from 'node:module';
+import * as path from 'node:path';
+import type {
+  DynamicLangRegistrations,
+  Lang as NativeLang,
 } from '@ast-grep/napi';
 
-import python from '@ast-grep/lang-python';
-import go from '@ast-grep/lang-go';
-import rust from '@ast-grep/lang-rust';
-import java from '@ast-grep/lang-java';
-import cpp from '@ast-grep/lang-cpp';
-import c from '@ast-grep/lang-c';
-import json from '@ast-grep/lang-json';
-import ruby from '@ast-grep/lang-ruby';
+// @ast-grep/napi and the dynamic grammar packages contain native bindings.
+// Keep these out of the import graph (including --help and pure language
+// mapping consumers). All AST operations retain their synchronous API.
+const requireNative = createRequire(import.meta.url);
+type NativeAstGrep = typeof import('@ast-grep/napi');
+let nativeBinding: NativeAstGrep | undefined;
 
-import * as path from 'node:path';
+function getNativeBinding(): NativeAstGrep {
+  // Do not cache failures: a repaired binding may become loadable later.
+  nativeBinding ??= requireNative('@ast-grep/napi') as NativeAstGrep;
+  return nativeBinding;
+}
+
+function loadGrammar(specifier: string): unknown {
+  const module = requireNative(specifier) as { default?: unknown };
+  return module.default ?? module;
+}
+
+// These are string-valued const-enum members in @ast-grep/napi. Re-declaring
+// the public values is essential: re-exporting Lang from the native package
+// would eagerly resolve the binding on import even when no AST tool runs.
+export const Lang = {
+  TypeScript: 'TypeScript' as NativeLang,
+  JavaScript: 'JavaScript' as NativeLang,
+  Tsx: 'Tsx' as NativeLang,
+  Html: 'Html' as NativeLang,
+  Css: 'Css' as NativeLang,
+} as const;
+export type Lang = NativeLang;
 
 let dynamicLanguagesRegistered = false;
 let dynamicLanguagesAvailable = false;
@@ -43,15 +60,15 @@ let dynamicLanguagesAvailable = false;
 function ensureDynamicLanguages(): void {
   if (dynamicLanguagesRegistered) return;
   try {
-    registerDynamicLanguage({
-      python,
-      go,
-      rust,
-      java,
-      cpp,
-      c,
-      json,
-      ruby,
+    getNativeBinding().registerDynamicLanguage({
+      python: loadGrammar('@ast-grep/lang-python'),
+      go: loadGrammar('@ast-grep/lang-go'),
+      rust: loadGrammar('@ast-grep/lang-rust'),
+      java: loadGrammar('@ast-grep/lang-java'),
+      cpp: loadGrammar('@ast-grep/lang-cpp'),
+      c: loadGrammar('@ast-grep/lang-c'),
+      json: loadGrammar('@ast-grep/lang-json'),
+      ruby: loadGrammar('@ast-grep/lang-ruby'),
     } as unknown as DynamicLangRegistrations);
     dynamicLanguagesAvailable = true;
   } catch {
@@ -171,7 +188,8 @@ function isBuiltinLang(language: string | Lang): boolean {
 export function isAstGrepAvailable(): boolean {
   try {
     return (
-      typeof napiParse === 'function' && typeof napiFindInFiles === 'function'
+      typeof getNativeBinding().parse === 'function' &&
+      typeof getNativeBinding().findInFiles === 'function'
     );
   } catch {
     return false;
@@ -186,7 +204,7 @@ export function isAstGrepAvailable(): boolean {
 export function parseSource(
   language: string | Lang,
   content: string,
-): { root: ReturnType<typeof napiParse> } | { error: string } {
+): { root: ReturnType<NativeAstGrep['parse']> } | { error: string } {
   try {
     ensureDynamicLanguages();
     if (!dynamicLanguagesAvailable && !isBuiltinLang(language)) {
@@ -195,7 +213,7 @@ export function parseSource(
           'ast-grep dynamic grammars are unavailable (native addon load failed)',
       };
     }
-    const result = napiParse(language as Lang, content);
+    const result = getNativeBinding().parse(language as NativeLang, content);
     return { root: result };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -215,14 +233,14 @@ export function parseSource(
 export function parse(
   language: string | Lang,
   content: string,
-): ReturnType<typeof napiParse> {
+): ReturnType<NativeAstGrep['parse']> {
   ensureDynamicLanguages();
   if (!dynamicLanguagesAvailable && !isBuiltinLang(language)) {
     throw new Error(
       'ast-grep dynamic grammars are unavailable (native addon load failed)',
     );
   }
-  return napiParse(language as Lang, content);
+  return getNativeBinding().parse(language as NativeLang, content);
 }
 
 /**
@@ -234,11 +252,9 @@ export function parse(
  * the primary parse path where a clearer message is most valuable.
  */
 export function findInFiles(
-  ...args: Parameters<typeof napiFindInFiles>
-): ReturnType<typeof napiFindInFiles> {
+  ...args: Parameters<NativeAstGrep['findInFiles']>
+): ReturnType<NativeAstGrep['findInFiles']> {
   ensureDynamicLanguages();
-  return napiFindInFiles(...args);
+  return getNativeBinding().findInFiles(...args);
 }
 
-// Re-export the Lang enum directly (enum, no native side effects).
-export { Lang } from '@ast-grep/napi';
