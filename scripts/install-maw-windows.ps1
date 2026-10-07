@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $cliBin = Join-Path $repoRoot 'packages\cli\bin'
-$node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
+# Validate that the installing shell has a PATH-resolved Node. Generated launchers resolve node.exe again at launch time.\n$null = Get-Command node -CommandType Application -ErrorAction Stop
 $managedMarker = 'MAW managed launcher'
 $BinDir = [IO.Path]::GetFullPath($BinDir)
 
@@ -92,7 +92,38 @@ function Assert-PreservableTarget {
 
 function Get-ManagedBody {
   param([string]$EntryPath)
-  return "@echo off`r`nrem MAW managed launcher`r`n`"$node`" `"$EntryPath`" %*`r`n"
+  # Avoid cmd.exe's default current-directory executable lookup while still
+  # following the current PATH-managed Node selected by the operator.
+  return "@echo off`r`nrem MAW managed launcher`r`nsetlocal`r`nset `"NoDefaultCurrentDirectoryInExePath=1`"`r`nnode.exe `"$EntryPath`" %*`r`nexit /b %ERRORLEVEL%`r`n"
+}
+
+function Test-LegacyGeneratedManagedBody {
+  param([string]$Body, [string]$EntryPath)
+
+  $lines = [Regex]::Split($Body, '\r?\n')
+  if ($lines.Count -eq 4 -and $lines[3] -eq '') {
+    $lines = $lines[0..2]
+  }
+  if ($lines.Count -ne 3) { return $false }
+  if ($lines[0] -ne '@echo off' -or $lines[1] -ne 'rem MAW managed launcher') {
+    return $false
+  }
+
+  $expectedSuffix = ' "' + $EntryPath + '" %*'
+  $commandLine = $lines[2]
+  if (-not $commandLine.EndsWith($expectedSuffix, [StringComparison]::OrdinalIgnoreCase)) {
+    return $false
+  }
+
+  $runtimeToken = $commandLine.Substring(0, $commandLine.Length - $expectedSuffix.Length)
+  if ($runtimeToken.Length -lt 2 -or -not $runtimeToken.StartsWith('"') -or -not $runtimeToken.EndsWith('"')) {
+    return $false
+  }
+
+  $runtimePath = $runtimeToken.Substring(1, $runtimeToken.Length - 2)
+  $runtimeName = [IO.Path]::GetFileName($runtimePath)
+  return [string]::Equals($runtimeName, 'node.exe', [StringComparison]::OrdinalIgnoreCase) -or
+    [string]::Equals($runtimeName, 'node', [StringComparison]::OrdinalIgnoreCase)
 }
 
 function Install-OrPreserveLauncher {
@@ -112,6 +143,9 @@ function Install-OrPreserveLauncher {
   $existing = [IO.File]::ReadAllText($target)
   if ($state -eq 'managed' -and $existing -eq $body) {
     Write-Output "Current $target"
+  } elseif ($state -eq 'managed' -and (Test-LegacyGeneratedManagedBody -Body $existing -EntryPath $entryPath)) {
+    [IO.File]::WriteAllText($target, $body, [Text.Encoding]::ASCII)
+    Write-Output "Upgraded generated launcher $target"
   } elseif ($state -eq 'managed') {
     Write-Output "Preserved modified managed launcher $target"
   } elseif ($state -eq 'legacy') {
