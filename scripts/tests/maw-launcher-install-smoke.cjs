@@ -1,0 +1,211 @@
+/**
+ * Focused smoke coverage for MAW's user-level launcher installers.
+ * Runs the POSIX/Termux contract on POSIX hosts and the PowerShell contract on
+ * Windows hosts without touching the real user PATH.
+ */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { test } = require('node:test');
+
+const repoRoot = path.resolve(__dirname, '..', '..');
+
+function fixtureRoot() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maw-launcher-smoke-'));
+  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'packages', 'cli', 'bin'), { recursive: true });
+  fs.copyFileSync(
+    path.join(repoRoot, 'scripts', 'install-maw-termux-launchers.sh'),
+    path.join(root, 'scripts', 'install-maw-termux-launchers.sh'),
+  );
+  fs.copyFileSync(
+    path.join(repoRoot, 'scripts', 'install-maw-windows.ps1'),
+    path.join(root, 'scripts', 'install-maw-windows.ps1'),
+  );
+  fs.writeFileSync(
+    path.join(root, 'scripts', 'maw-termux.sh'),
+    '#!/bin/sh\nprintf \'%s\\n\' "$PWD"\n',
+    { mode: 0o755 },
+  );
+  fs.writeFileSync(
+    path.join(root, 'packages', 'cli', 'bin', 'maw.mjs'),
+    'console.log(process.cwd());\n',
+  );
+  fs.writeFileSync(
+    path.join(root, 'packages', 'cli', 'bin', 'maw-lab.mjs'),
+    'console.log(process.cwd());\n',
+  );
+  return root;
+}
+
+function withOriginalPath(...entries) {
+  return [...entries, process.env.PATH || ''].filter(Boolean).join(path.delimiter);
+}
+
+test(
+  'Termux installer falls back to PREFIX/bin and resolves MAW from an unrelated cwd',
+  { skip: process.platform === 'win32' },
+  () => {
+    const root = fixtureRoot();
+    try {
+      const home = path.join(root, 'home');
+      const prefix = path.join(root, 'prefix');
+      const binDir = path.join(prefix, 'bin');
+      const work = path.join(root, 'other-project');
+      fs.mkdirSync(home, { recursive: true });
+      fs.mkdirSync(binDir, { recursive: true });
+      fs.mkdirSync(work, { recursive: true });
+      const env = {
+        ...process.env,
+        HOME: home,
+        PREFIX: prefix,
+        PATH: withOriginalPath(binDir),
+      };
+
+      const install = spawnSync(
+        'sh',
+        [path.join(root, 'scripts', 'install-maw-termux-launchers.sh')],
+        { cwd: work, env, encoding: 'utf8' },
+      );
+      assert.equal(install.status, 0, install.stderr || install.stdout);
+      for (const name of ['maw', 'maw-lab', 'lab-maw']) {
+        assert.equal(fs.existsSync(path.join(binDir, name)), true);
+      }
+
+      const launch = spawnSync('sh', ['-c', 'maw'], {
+        cwd: work,
+        env,
+        encoding: 'utf8',
+      });
+      assert.equal(launch.status, 0, launch.stderr || launch.stdout);
+      assert.equal(launch.stdout.trim(), work);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Termux installer keeps HOME/bin when it is already on PATH',
+  { skip: process.platform === 'win32' },
+  () => {
+    const root = fixtureRoot();
+    try {
+      const home = path.join(root, 'home');
+      const homeBin = path.join(home, 'bin');
+      const prefix = path.join(root, 'prefix');
+      const prefixBin = path.join(prefix, 'bin');
+      fs.mkdirSync(homeBin, { recursive: true });
+      fs.mkdirSync(prefixBin, { recursive: true });
+      const env = {
+        ...process.env,
+        HOME: home,
+        PREFIX: prefix,
+        PATH: withOriginalPath(homeBin, prefixBin),
+      };
+      const install = spawnSync(
+        'sh',
+        [path.join(root, 'scripts', 'install-maw-termux-launchers.sh')],
+        { env, encoding: 'utf8' },
+      );
+      assert.equal(install.status, 0, install.stderr || install.stdout);
+      assert.equal(fs.existsSync(path.join(homeBin, 'maw')), true);
+      assert.equal(fs.existsSync(path.join(prefixBin, 'maw')), false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Termux installer rejects an explicit MAW_BIN_DIR that is not discoverable',
+  { skip: process.platform === 'win32' },
+  () => {
+    const root = fixtureRoot();
+    try {
+      const home = path.join(root, 'home');
+      const prefix = path.join(root, 'prefix');
+      const prefixBin = path.join(prefix, 'bin');
+      const custom = path.join(root, 'hidden-bin');
+      fs.mkdirSync(home, { recursive: true });
+      fs.mkdirSync(prefixBin, { recursive: true });
+      fs.mkdirSync(custom, { recursive: true });
+      const env = {
+        ...process.env,
+        HOME: home,
+        PREFIX: prefix,
+        MAW_BIN_DIR: custom,
+        PATH: withOriginalPath(prefixBin),
+      };
+      const install = spawnSync(
+        'sh',
+        [path.join(root, 'scripts', 'install-maw-termux-launchers.sh')],
+        { env, encoding: 'utf8' },
+      );
+      assert.equal(install.status, 2);
+      assert.match(install.stderr, /MAW_BIN_DIR is not on PATH/);
+      assert.equal(fs.existsSync(path.join(custom, 'maw')), false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test('Windows installer persists user PATH without editing PowerShell profiles', () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, 'scripts', 'install-maw-windows.ps1'),
+    'utf8',
+  );
+  assert.match(source, /SetEnvironmentVariable\('Path'/);
+  assert.match(source, /EnvironmentVariableTarget\]::User/);
+  assert.match(source, /Assert-LauncherResolution/);
+  assert.doesNotMatch(source, /\$PROFILE|Microsoft\.PowerShell_profile\.ps1/);
+});
+
+function findPowerShell() {
+  for (const candidate of ['pwsh.exe', 'powershell.exe']) {
+    const probe = spawnSync(candidate, ['-NoProfile', '-Command', 'exit 0']);
+    if (probe.status === 0) return candidate;
+  }
+  return null;
+}
+
+function psQuote(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+test(
+  'Windows installer exposes all MAW commands in the current PowerShell without changing cwd',
+  { skip: process.platform !== 'win32' },
+  () => {
+    const engine = findPowerShell();
+    assert.ok(engine, 'PowerShell executable not found');
+    const root = fixtureRoot();
+    try {
+      const binDir = path.join(root, 'bin');
+      const work = path.join(root, 'other-project');
+      fs.mkdirSync(work, { recursive: true });
+      const script = path.join(root, 'scripts', 'install-maw-windows.ps1');
+      const expected = path.join(binDir, 'maw.cmd');
+      const command = [
+        "$ErrorActionPreference = 'Stop'",
+        `& ${psQuote(script)} -BinDir ${psQuote(binDir)} -NoUserPathUpdate`,
+        `Push-Location ${psQuote(work)}`,
+        'try {',
+        "  $resolved = (Get-Command maw -CommandType Application -ErrorAction Stop).Source",
+        `  if ([IO.Path]::GetFullPath($resolved) -ne [IO.Path]::GetFullPath(${psQuote(expected)})) { throw 'maw resolution mismatch' }`,
+        '  $reported = (maw | Out-String).Trim()',
+        "  if ($reported -ne (Get-Location).Path) { throw 'maw changed the caller cwd' }",
+        '} finally { Pop-Location }',
+      ].join('; ');
+      const result = spawnSync(engine, ['-NoProfile', '-Command', command], {
+        encoding: 'utf8',
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
