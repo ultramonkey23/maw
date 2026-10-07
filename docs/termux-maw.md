@@ -20,17 +20,24 @@ only for code generation.
 ## Device prerequisites
 
 - Termux installed and Android ARM64 (`uname -m` = `aarch64` / `arm64`).
-- Node.js 24+ and npm installed. Node 26.3.1/npm 11.17.0 have been reported by
-  the first target device; this isn't a device-independent compatibility proof.
+- Node.js 24+ and npm installed. Node 26.4.0 has been observed on the first
+  target device; this isn't a device-independent compatibility proof.
 - Git and enough free device storage for a large multi-workspace npm install.
 - Network access for the first checkout and dependency download.
 
-The root package pins Bun 1.3.14 and includes Android ARM64
-`@oven/bun-linux-aarch64-android` as an optional dependency. The local launcher
-prefers the separately bootstrapped Android Bionic binary, then the Android ABI
-build installed by npm, then a **working** npm-managed Bun binary, then an
-already working Bun on `PATH`. It rejects non-running candidates, an
-unsupported architecture, and versions below 1.3.14.
+MAW's general Bun compatibility floor remains `>=1.3.14`, but the Termux
+Android ARM64 runtime is intentionally pinned to Bun **1.4.2** through
+`scripts/maw-termux-bun-version.txt`. The root package's direct
+`@oven/bun-linux-aarch64-android` optional dependency is aligned to that
+Termux pin without changing the generic Bun package or other platform packages.
+
+The local launcher prefers the separately bootstrapped 1.4.2 Android Bionic
+binary, then the Android ABI build installed by npm. The previous isolated
+1.3.14 runtime is retained as a rollback candidate behind those preferred
+paths, followed by a **working** npm-managed Bun binary and then a working Bun
+on `PATH`. It rejects non-running candidates, unsupported architecture, and
+versions below MAW's general 1.3.14 floor. `--doctor` reports both the preferred
+Termux version and the runtime actually selected, so fallback is visible.
 
 ## Initial setup: isolated from Ultralab
 
@@ -66,11 +73,13 @@ The Android-specific source launcher must exist after checkout/update:
 checkout rather than cloning another copy.
 
 **Bootstrap first:** MAW has Bun-dependent workspace install hooks, while
-Termux may have no working Bun installed. The dedicated bootstrap downloads
-the official pinned `@oven/bun-linux-aarch64-android@1.3.14` archive with
-`npm pack`, checks the actual executable on the device, and installs it only
-under `$HOME/.local/share/maw/bun-1.3.14`. It does not replace `ultralab`,
-the Termux-wide `node`, or any globally installed Bun.
+Termux may have no working Bun installed. The dedicated bootstrap reads the
+checked-in Termux Bun version source, downloads the official pinned
+`@oven/bun-linux-aarch64-android@1.4.2` archive with `npm pack`, checks the
+actual executable on the device, and installs it only under
+`$HOME/.local/share/maw/bun-1.4.2`. It does **not** delete the prior
+`$HOME/.local/share/maw/bun-1.3.14` runtime, replace `ultralab`, modify the
+Termux-wide `node`, or replace any globally installed Bun.
 
 ```sh
 cd "$HOME/repos/maw"
@@ -148,13 +157,25 @@ If running MAW fails, use the existing `ultralab` command as before. Remove only
 contents** if you want to stop using them. Do not delete any Lab worktrees, `$HOME/labctl`,
 `$HOME/AGENTS.md`, or existing Ultralab installation.
 
-## Android compatibility still to verify
+## Android compatibility evidence and remaining checks
 
-1. Does Bun 1.3.14 Android ARM64 execute in the target Termux environment?
-2. Does the repo's `npm install` complete without unsupported native modules?
-3. Can MAW render its interactive Ink UI without truncation or terminal flicker?
-4. Do shell tool execution, PTY streaming, and interrupts work in Termux?
-5. Are Lab files seen from `$HOME`, without sandbox/chdir surprises?
-6. Does exiting MAW leave a separate `ultralab` invocation functional?
+Observed on the first target device on 2026-10-07:
 
-None of those on-device checks is replaced by desktop or mocked shell tests.
+- Bun 1.4.2 Android ARM64 executed the MAW TypeScript CLI entry successfully.
+- `Bun.Image` was available.
+- The same `--help` source-entry probe emitted no
+  `Cannot read directory "/data/data/": AccessDenied` stderr noise that had
+  appeared under the isolated Bun 1.3.14 runtime.
+- The normal MAW update path completed `npm install`, source preparation, and
+  launcher refresh with Node 26.4.0 and the existing Bun 1.3.14 substrate
+  before this 1.4.2 migration was committed.
+
+Still to verify independently where relevant:
+
+1. Can MAW render its interactive Ink UI without truncation or terminal flicker?
+2. Do shell tool execution, PTY streaming, and interrupts work in Termux?
+3. Are Lab files seen from `$HOME`, without sandbox/chdir surprises?
+4. Does exiting MAW leave a separate `ultralab` invocation functional?
+
+None of those remaining on-device checks is replaced by desktop or mocked shell
+tests.
