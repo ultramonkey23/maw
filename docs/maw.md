@@ -18,10 +18,13 @@ npm run build
 
 The built CLI package exposes `maw`, `maw-lab`, and the exact `lab-maw` alias in
 addition to `llxprt`. On Windows, install/update their user-level launchers in
-the existing user bin directory without changing any `llxprt` command:
+the existing user bin directory without changing any `llxprt` command. Running
+the installer in the current PowerShell lets it update both the persistent User
+`Path` and the current session immediately:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-maw-windows.ps1
+Set-ExecutionPolicy -Scope Process Bypass
+& .\scripts\install-maw-windows.ps1
 maw --help
 maw-lab --help
 lab-maw --help
@@ -30,8 +33,17 @@ lab-maw --help
 The installer refreshes only unchanged MAW-managed launchers. Existing legacy
 or user-modified MAW launchers are preserved, and a missing Lab alias is cloned
 from the existing Lab launcher so custom arguments survive the upgrade.
-Unrelated commands are never overwritten. The user bin directory must be on
-`PATH` (the default is `$HOME\.local\bin`). During development, run:
+Unrelated commands are never overwritten. The default launcher directory is
+`$HOME\.local\bin`; if it is missing from the persistent per-user `Path`,
+the installer adds it and verifies that `Get-Command` resolves all three MAW
+commands to the installed launchers. It does not edit PowerShell profile files.
+Use `-NoUserPathUpdate` only when another environment manager owns persistent
+`Path` configuration.
+
+If the installer is instead launched in a child process such as
+`powershell -File ...`, that child cannot modify its parent shell's environment.
+The persistent User `Path` is still updated, but start a fresh terminal/session
+before invoking MAW by name. During development, run:
 
 ```sh
 npm run start:maw -- --help
