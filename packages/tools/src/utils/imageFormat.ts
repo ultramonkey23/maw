@@ -238,7 +238,7 @@ export function resolveMediaCategory(mimeType: string): MediaCategory | null {
   return null;
 }
 
-function headerMatches(
+export function headerMatchesMediaSignature(
   header: Buffer,
   signatures: readonly MediaSignature[],
 ): boolean {
@@ -261,7 +261,7 @@ export async function verifyMediaSignature(
     const { bytesRead } = await fh.read(buf, 0, 512, 0);
     const header = buf.subarray(0, bytesRead);
     if (header.length === 0) return false;
-    return headerMatches(header, signatures);
+    return headerMatchesMediaSignature(header, signatures);
   } catch (error) {
     debugLogger.warn(
       `Failed to verify media signature for: ${filePath}`,
