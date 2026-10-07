@@ -83,6 +83,7 @@ describe('MAW Lab attachment boundary', () => {
     expect(lab?.command).toBe('python');
     expect(lab?.cwd).toBe(root);
     expect(lab?.args).toStrictEqual([join(root, 'tools', 'lab_mcp_server.py')]);
+    expect(lab?.env?.['MAW_WORKSPACE_ROOT']).toBe(process.cwd());
     expect(lab?.trust).toBe(true);
     expect(lab?.includeTools).toBeUndefined();
     expect(lab?.excludeTools).toBeUndefined();
@@ -126,6 +127,7 @@ describe('MAW Lab attachment boundary', () => {
     expect(mcpServers['lab']?.args).toStrictEqual([
       join(root, 'tools', 'lab_mcp_server.py'),
     ]);
+    expect(mcpServers['lab']?.env?.['MAW_WORKSPACE_ROOT']).toBe(workspace);
   });
 
   it('lets the canonical Lab environment outrank an ancestor checkout', () => {
