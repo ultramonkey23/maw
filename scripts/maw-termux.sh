@@ -63,6 +63,11 @@ node -e '
 if [ "${1:-}" = '--doctor' ]; then
   printf 'MAW Termux: runtime found\n'
   printf 'Bun: %s (%s)\n' "$bun_path" "$bun_version"
+  if "$bun_path" -e 'process.exit(typeof Bun.Image === "function" ? 0 : 1)' >/dev/null 2>&1; then
+    printf 'Bun.Image: available\n'
+  else
+    printf 'Bun.Image: unavailable\n'
+  fi
   printf 'Node: %s\n' "$(node --version)"
   printf 'MAW source: %s\n' "$repo_root"
   printf 'Workspace (unchanged): %s\n' "$PWD"
@@ -72,6 +77,10 @@ if [ "${1:-}" = '--doctor' ]; then
     printf 'Lab home markers: not both found (no workspace changes made)\n'
   fi
   exit 0
+fi
+
+if [ "${1:-}" = '--image-smoke' ]; then
+  exec "$bun_path" "$repo_root/scripts/maw-termux-image-smoke.ts"
 fi
 
 if [ "${1:-}" = '--prepare' ]; then
