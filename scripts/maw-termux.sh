@@ -32,8 +32,9 @@ esac
 command -v node >/dev/null 2>&1 || fail 'Node.js 24+ is required.'
 node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' || fail 'Node.js 24+ is required.'
 
-# Prefer the Android ABI build, then the npm-managed Bun binary, then PATH.
-# Never fall back to a generic glibc/musl ARM64 binary.
+# Prefer MAW's isolated preferred Android runtime, then the npm Android ABI
+# package, then the retained isolated 1.3.14 rollback runtime. Only after those
+# use working npm/PATH Bun candidates; never use a generic glibc/musl ARM64 build.
 bun_path=''
 for candidate in \
   "$HOME/.local/share/maw/bun-$termux_bun_version/bin/bun" \
