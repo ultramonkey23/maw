@@ -87,9 +87,15 @@ checks for an actually runnable interpreter: Windows follows the Lab launcher's
 `py -3`, `python`, then `python3` preference; POSIX/Termux tries `python`
 then `python3`.
 
-The Lab MCP server starts with an absolute script path and its own working
+The Lab MCP server starts with an absolute script path and its own Lab working
 directory while MAW preserves the caller's current repository as the coding
-workspace. Lab-attached mode explicitly sets `LLXPRT_SANDBOX=false`; Lab owns the
+workspace. MAW passes that caller workspace separately as `MAW_WORKSPACE_ROOT`,
+so Lab code/state ownership and coding-repo identity are never inferred from the
+same cwd. In an unregistered Git repo, Lab `project_entry` can therefore return
+the existing `EPHEMERAL_UNREGISTERED` context immediately; registration is for
+durable portfolio memory, not permission to enter or inspect the repository.
+
+Lab-attached mode explicitly sets `LLXPRT_SANDBOX=false`; Lab owns the
 execution authority instead of nesting the session in LLxprt's container/seatbelt
 sandbox. MAW still starts if the Lab root is missing. Use `/mcp` to check a
 real connection; a requested attachment is never proof of a handshake.
