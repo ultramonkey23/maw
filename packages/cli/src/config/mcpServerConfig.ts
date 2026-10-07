@@ -5,6 +5,7 @@
  */
 
 import { DebugLogger } from '@vybestack/llxprt-code-telemetry';
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -17,26 +18,118 @@ import type { ContextResolutionResult } from './interactiveContext.js';
 
 const logger = new DebugLogger('llxprt:config:mcpServerConfig');
 
-function findLabRoot(): string | undefined {
-  const explicit = process.env['MAW_LAB_ROOT'];
-  const candidates: string[] = explicit
-    ? [explicit]
-    : [homedir(), join(homedir(), 'ultramonkeydog-lab')];
-  if (!explicit) {
-    let current = resolve(process.cwd());
-    for (;;) {
-      candidates.push(current);
-      const parent = dirname(current);
-      if (parent === current) break;
-      current = parent;
-    }
-  }
-  return candidates.find(
-    (candidate) =>
-      existsSync(join(candidate, 'AGENTS.md')) &&
-      existsSync(join(candidate, 'labctl')) &&
-      existsSync(join(candidate, 'tools', 'lab_mcp_server.py')),
+function looksLikeLabRoot(candidate: string): boolean {
+  return (
+    existsSync(join(candidate, 'AGENTS.md')) &&
+    existsSync(join(candidate, 'labctl')) &&
+    existsSync(join(candidate, 'tools', 'lab_mcp_server.py'))
   );
+}
+
+function addLabCandidate(
+  candidates: string[],
+  seen: Set<string>,
+  candidate: string | undefined,
+): void {
+  const value = candidate?.trim();
+  if (!value) return;
+  const absolute = resolve(value);
+  const key = process.platform === 'win32' ? absolute.toLowerCase() : absolute;
+  if (seen.has(key)) return;
+  seen.add(key);
+  candidates.push(absolute);
+}
+
+interface LabPythonCommand {
+  command: string;
+  prefixArgs: string[];
+}
+
+function canRunLabPython(candidate: LabPythonCommand): boolean {
+  try {
+    const result = spawnSync(
+      candidate.command,
+      [...candidate.prefixArgs, '--version'],
+      {
+        stdio: 'ignore',
+        timeout: 5000,
+        windowsHide: true,
+      },
+    );
+    return result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function resolveLabPythonCommand(): LabPythonCommand {
+  const explicit = process.env['MAW_LAB_PYTHON']?.trim();
+  if (explicit) {
+    return { command: explicit, prefixArgs: [] };
+  }
+
+  const candidates: LabPythonCommand[] =
+    process.platform === 'win32'
+      ? [
+          { command: 'py', prefixArgs: ['-3'] },
+          { command: 'python', prefixArgs: [] },
+          { command: 'python3', prefixArgs: [] },
+        ]
+      : [
+          { command: 'python', prefixArgs: [] },
+          { command: 'python3', prefixArgs: [] },
+        ];
+
+  return (
+    candidates.find(canRunLabPython) ?? {
+      command: 'python',
+      prefixArgs: [],
+    }
+  );
+}
+
+function findLabRoot(): string | undefined {
+  // MAW's explicit override is authoritative. If it is wrong, fail visibly
+  // instead of silently attaching some other checkout.
+  const explicit = process.env['MAW_LAB_ROOT']?.trim();
+  if (explicit) {
+    const candidate = resolve(explicit);
+    return looksLikeLabRoot(candidate) ? candidate : undefined;
+  }
+
+  const cwd = resolve(process.cwd());
+  // Match the Lab's canonical resolver: an invocation whose cwd is itself the
+  // Lab root is an explicit local selection and wins over environment hints.
+  if (looksLikeLabRoot(cwd)) return cwd;
+
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  // Reuse the Lab's own established root signals before fallback guesses.
+  // ULTRAMONKEYDOG_LAB_ROOT is the canonical Lab pathing override;
+  // LAB_ROOT/LAB_DIR are used by existing Lab launchers and Termux setup.
+  for (const name of [
+    'ULTRAMONKEYDOG_LAB_ROOT',
+    'LAB_ROOT',
+    'LAB_DIR',
+  ] as const) {
+    addLabCandidate(candidates, seen, process.env[name]);
+  }
+
+  // If no canonical environment selected a checkout, preserve MAW's useful
+  // ancestor discovery for callers working somewhere inside a Lab checkout.
+  let current = dirname(cwd);
+  for (;;) {
+    addLabCandidate(candidates, seen, current);
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  addLabCandidate(candidates, seen, homedir());
+  addLabCandidate(candidates, seen, join(homedir(), 'ultramonkeydog-lab'));
+
+  return candidates.find(looksLikeLabRoot);
 }
 
 function applyMawLabMode(
@@ -54,11 +147,15 @@ function applyMawLabMode(
     logger.debug('MAW Lab root unavailable; continuing without Lab MCP.');
     return withoutLab;
   }
+  const python = resolveLabPythonCommand();
   return {
     ...withoutLab,
     lab: {
-      command: process.env['MAW_LAB_PYTHON'] ?? 'python',
-      args: [join(root, 'tools', 'lab_mcp_server.py')],
+      command: python.command,
+      args: [
+        ...python.prefixArgs,
+        join(root, 'tools', 'lab_mcp_server.py'),
+      ],
       cwd: root,
       env: { PYTHONIOENCODING: 'utf-8' },
       timeout: 600000,
