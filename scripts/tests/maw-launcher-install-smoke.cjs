@@ -45,6 +45,80 @@ function withOriginalPath(...entries) {
 }
 
 test(
+  'Termux Bun version source, package metadata, locks, and launcher preference stay aligned',
+  { skip: process.platform === 'win32' },
+  () => {
+    const preferred = fs
+      .readFileSync(
+        path.join(repoRoot, 'scripts', 'maw-termux-bun-version.txt'),
+        'utf8',
+      )
+      .trim();
+    assert.equal(preferred, '1.4.2');
+
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'),
+    );
+    assert.equal(
+      packageJson.optionalDependencies['@oven/bun-linux-aarch64-android'],
+      preferred,
+    );
+    // Android ARM64 evidence must not silently raise MAW's cross-platform
+    // Bun floor or rewrite the generic Bun package used by other platforms.
+    assert.equal(packageJson.engines.bun, '>=1.3.14');
+    assert.equal(packageJson.dependencies.bun, '1.3.14');
+
+    const bootstrap = fs.readFileSync(
+      path.join(repoRoot, 'scripts', 'bootstrap-termux-bun.sh'),
+      'utf8',
+    );
+    assert.match(bootstrap, /maw-termux-bun-version\.txt/);
+    assert.match(
+      bootstrap,
+      /pkg="@oven\/bun-linux-aarch64-android@\$version"/,
+    );
+    assert.match(bootstrap, /bun-\$version/);
+
+    const launcher = fs.readFileSync(
+      path.join(repoRoot, 'scripts', 'maw-termux.sh'),
+      'utf8',
+    );
+    const preferredCandidate = launcher.indexOf(
+      '"$HOME/.local/share/maw/bun-$termux_bun_version/bin/bun"',
+    );
+    const packageCandidate = launcher.indexOf(
+      '"$repo_root/node_modules/@oven/bun-linux-aarch64-android/bin/bun"',
+    );
+    const rollbackCandidate = launcher.indexOf(
+      '"$HOME/.local/share/maw/bun-1.3.14/bin/bun"',
+    );
+    assert.ok(preferredCandidate >= 0, 'preferred isolated Bun candidate missing');
+    assert.ok(packageCandidate > preferredCandidate, 'npm Android Bun must follow preferred isolated runtime');
+    assert.ok(rollbackCandidate > packageCandidate, '1.3.14 rollback must follow 1.4.2-capable candidates');
+
+    const packageLock = fs.readFileSync(
+      path.join(repoRoot, 'package-lock.json'),
+      'utf8',
+    );
+    assert.match(
+      packageLock,
+      /"node_modules\/@oven\/bun-linux-aarch64-android": \{\s*"version": "1\.4\.2"/,
+    );
+    assert.match(
+      packageLock,
+      /"node_modules\/bun": \{[\s\S]*?"version": "1\.3\.14"/,
+    );
+
+    const bunLock = fs.readFileSync(path.join(repoRoot, 'bun.lock'), 'utf8');
+    assert.match(
+      bunLock,
+      /"@oven\/bun-linux-aarch64-android": \["@oven\/bun-linux-aarch64-android@1\.4\.2"/,
+    );
+    assert.match(bunLock, /"bun": \["bun@1\.3\.14"/);
+  },
+);
+
+test(
   'Termux installer falls back to PREFIX/bin and resolves MAW from an unrelated cwd',
   { skip: process.platform === 'win32' },
   () => {
