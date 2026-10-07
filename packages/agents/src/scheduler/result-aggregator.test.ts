@@ -315,23 +315,152 @@ describe('ResultAggregator', () => {
     });
   });
 
-  // ---------- applyBatchOutputLimits ----------------------------------------
+  // ---------- circulating batch output budget -------------------------------
 
-  describe('applyBatchOutputLimits (via beginBatch)', () => {
+  describe('circulating batch output budget (via beginBatch)', () => {
+    function publishedSuccessOutput(index: number): string {
+      const calls = (callbacks.setSuccess as ReturnType<typeof vi.fn>).mock
+        .calls as Array<[string, ToolCallResponseInfo]>;
+      const response = calls[index]?.[1];
+      if (!response) {
+        throw new Error(`missing published success response at index ${index}`);
+      }
+      const block = response.responseParts[0];
+      if (block.type !== 'tool_response') {
+        throw new Error(
+          `expected a tool_response block but got ${String(block.type)}`,
+        );
+      }
+      const result = block.result;
+      if (
+        typeof result !== 'object' ||
+        result === null ||
+        !('output' in result) ||
+        typeof result.output !== 'string'
+      ) {
+        throw new Error('tool_response block has no string output');
+      }
+      return result.output;
+    }
+
     it('does not reduce limits for a single-tool batch', async () => {
-      // batchOutputConfig is undefined for size=1; publishResult uses getFallbackOutputConfig
       agg.beginBatch(1);
       const call = makeScheduledCall('c0');
       agg.bufferResult('c0', 'tool', call, makeSuccessResult('x'), 0);
 
       await agg.publishBufferedResults(makeAbortSignal());
 
-      // getFallbackOutputConfig is called when batchOutputConfig is absent
-      expect(callbacks.getFallbackOutputConfig).toHaveBeenCalled();
+      expect(publishedSuccessOutput(0)).toBe('x');
     });
 
-    it('creates a reduced per-tool budget for multi-tool batches', async () => {
-      // Override fallback to return a known token limit
+    it('circulates unused early capacity to later tool results', async () => {
+      const base: ToolOutputSettingsProvider = {
+        getEphemeralSettings: () => ({
+          'tool-output-max-tokens': 10000,
+          'tool-output-truncate-mode': 'truncate',
+        }),
+      };
+      (
+        callbacks.getFallbackOutputConfig as ReturnType<typeof vi.fn>
+      ).mockReturnValue(base);
+
+      const largeLaterOutput = 'word '.repeat(4500);
+      agg.beginBatch(2);
+      agg.bufferResult(
+        'c-small',
+        'tool',
+        makeScheduledCall('c-small'),
+        makeSuccessResult('ok'),
+        0,
+      );
+      agg.bufferResult(
+        'c-large',
+        'tool',
+        makeScheduledCall('c-large'),
+        makeSuccessResult(largeLaterOutput),
+        1,
+      );
+
+      await agg.publishBufferedResults(makeAbortSignal());
+
+      expect(publishedSuccessOutput(0)).toBe('ok');
+      expect(publishedSuccessOutput(1)).toBe(largeLaterOutput);
+      expect(publishedSuccessOutput(1)).not.toContain(
+        '[Output truncated due to token limit]',
+      );
+    });
+
+    it('keeps a fair share reserved for later results', async () => {
+      const base: ToolOutputSettingsProvider = {
+        getEphemeralSettings: () => ({
+          'tool-output-max-tokens': 10000,
+          'tool-output-truncate-mode': 'truncate',
+        }),
+      };
+      (
+        callbacks.getFallbackOutputConfig as ReturnType<typeof vi.fn>
+      ).mockReturnValue(base);
+
+      const oversizedEarlyOutput = 'word '.repeat(4500);
+      agg.beginBatch(2);
+      agg.bufferResult(
+        'c-large-first',
+        'tool',
+        makeScheduledCall('c-large-first'),
+        makeSuccessResult(oversizedEarlyOutput),
+        0,
+      );
+      agg.bufferResult(
+        'c-later',
+        'tool',
+        makeScheduledCall('c-later'),
+        makeSuccessResult('later survives'),
+        1,
+      );
+
+      await agg.publishBufferedResults(makeAbortSignal());
+
+      expect(publishedSuccessOutput(0)).toContain(
+        '[Output truncated due to token limit]',
+      );
+      expect(publishedSuccessOutput(1)).toBe('later survives');
+    });
+
+    it('honors the canonical disabled token-limit setting for parallel batches', async () => {
+      const base: ToolOutputSettingsProvider = {
+        getEphemeralSettings: () => ({
+          'tool-output-max-tokens': false,
+          'tool-output-truncate-mode': 'truncate',
+        }),
+      };
+      (
+        callbacks.getFallbackOutputConfig as ReturnType<typeof vi.fn>
+      ).mockReturnValue(base);
+
+      const output = 'word '.repeat(3000);
+      agg.beginBatch(2);
+      agg.bufferResult(
+        'c0',
+        'tool',
+        makeScheduledCall('c0'),
+        makeSuccessResult(output),
+        0,
+      );
+      agg.bufferResult(
+        'c1',
+        'tool',
+        makeScheduledCall('c1'),
+        makeSuccessResult(output),
+        1,
+      );
+
+      await agg.publishBufferedResults(makeAbortSignal());
+
+      expect(publishedSuccessOutput(0)).toBe(output);
+      expect(publishedSuccessOutput(1)).toBe(output);
+    });
+
+    it('publishes every tool when the batch budget is shared', async () => {
       const base: ToolOutputSettingsProvider = {
         getEphemeralSettings: () => ({ 'tool-output-max-tokens': 10000 }),
       };
@@ -339,18 +468,22 @@ describe('ResultAggregator', () => {
         callbacks.getFallbackOutputConfig as ReturnType<typeof vi.fn>
       ).mockReturnValue(base);
 
-      agg.beginBatch(10); // 10 tools → 1000 tokens each (min floor)
+      agg.beginBatch(10);
       const calls = Array.from({ length: 10 }, (_, i) =>
         makeScheduledCall(`c${i}`),
       );
-      calls.forEach((c, i) =>
-        agg.bufferResult(c.request.callId, 'tool', c, makeSuccessResult(), i),
+      calls.forEach((call, i) =>
+        agg.bufferResult(
+          call.request.callId,
+          'tool',
+          call,
+          makeSuccessResult(),
+          i,
+        ),
       );
 
       await agg.publishBufferedResults(makeAbortSignal());
 
-      // All succeed; batchOutputConfig was used instead of fallback for
-      // individual publishing (fallback still called once during beginBatch)
       expect(callbacks.setSuccess).toHaveBeenCalledTimes(10);
     });
   });
