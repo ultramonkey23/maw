@@ -17,9 +17,9 @@ import {
   type ImageResizePolicy,
 } from './imageResize.js';
 import {
+  headerMatchesMediaSignature,
   normalizeImageForRead,
   resolveMediaCategory,
-  verifyMediaSignature,
 } from './imageFormat.js';
 import {
   checkImageDimensionBudgetFromBuffer,
@@ -184,6 +184,25 @@ export function getSpecificMimeType(filePath: string): string | undefined {
   return typeof lookedUpMime === 'string' ? lookedUpMime : undefined;
 }
 
+const FILE_TYPE_BINARY_SAMPLE_BYTES = 4096;
+const MEDIA_SIGNATURE_HEADER_BYTES = 512;
+
+function sampleLooksBinary(sample: Buffer): boolean {
+  if (sample.length === 0) return false;
+
+  const bom = detectBOM(sample.subarray(0, Math.min(4, sample.length)));
+  if (bom) return false;
+
+  let nonPrintableCount = 0;
+  for (let i = 0; i < sample.length; i++) {
+    if (sample[i] === 0) return true;
+    if (sample[i] < 9 || (sample[i] > 13 && sample[i] < 32)) {
+      nonPrintableCount++;
+    }
+  }
+  return nonPrintableCount / sample.length > 0.3;
+}
+
 export async function isBinaryFile(filePath: string): Promise<boolean> {
   let fh: fs.promises.FileHandle | null = null;
   try {
@@ -192,22 +211,12 @@ export async function isBinaryFile(filePath: string): Promise<boolean> {
     const fileSize = stats.size;
     if (fileSize === 0) return false;
 
-    const sampleSize = Math.min(4096, fileSize);
+    const sampleSize = Math.min(FILE_TYPE_BINARY_SAMPLE_BYTES, fileSize);
     const buf = Buffer.alloc(sampleSize);
     const { bytesRead } = await fh.read(buf, 0, sampleSize, 0);
     if (bytesRead === 0) return false;
 
-    const bom = detectBOM(buf.subarray(0, Math.min(4, bytesRead)));
-    if (bom) return false;
-
-    let nonPrintableCount = 0;
-    for (let i = 0; i < bytesRead; i++) {
-      if (buf[i] === 0) return true;
-      if (buf[i] < 9 || (buf[i] > 13 && buf[i] < 32)) {
-        nonPrintableCount++;
-      }
-    }
-    return nonPrintableCount / bytesRead > 0.3;
+    return sampleLooksBinary(buf.subarray(0, bytesRead));
   } catch (error) {
     debugLogger.warn(
       `Failed to check if file is binary: ${filePath}`,
@@ -236,6 +245,64 @@ export type DetectedFileType =
   | 'binary'
   | 'svg';
 
+async function classifyMediaCandidate(
+  filePath: string,
+  mediaType: 'image' | 'audio' | 'video' | 'pdf',
+  signatures: Parameters<typeof headerMatchesMediaSignature>[1],
+): Promise<DetectedFileType> {
+  let fh: fs.promises.FileHandle | null = null;
+  try {
+    // Keep the valid-media fast path identical in size to the old signature
+    // verifier (512 bytes). Only when the signature fails do we extend the
+    // SAME open handle to the 4 KiB text/binary sample instead of reopening.
+    fh = await fs.promises.open(filePath, 'r');
+    const sample = Buffer.alloc(FILE_TYPE_BINARY_SAMPLE_BYTES);
+    const firstRead = await fh.read(
+      sample,
+      0,
+      MEDIA_SIGNATURE_HEADER_BYTES,
+      0,
+    );
+    let bytesRead = firstRead.bytesRead;
+    const header = sample.subarray(0, bytesRead);
+    if (
+      header.length > 0 &&
+      headerMatchesMediaSignature(header, signatures)
+    ) {
+      return mediaType;
+    }
+
+    while (bytesRead < sample.length) {
+      const next = await fh.read(
+        sample,
+        bytesRead,
+        sample.length - bytesRead,
+        bytesRead,
+      );
+      if (next.bytesRead === 0) break;
+      bytesRead += next.bytesRead;
+    }
+    return sampleLooksBinary(sample.subarray(0, bytesRead))
+      ? 'binary'
+      : 'text';
+  } catch (error) {
+    debugLogger.warn(
+      `Failed to classify media-like file: ${filePath}`,
+      error instanceof Error ? error.message : String(error),
+    );
+    return 'text';
+  } finally {
+    if (fh) {
+      try {
+        await fh.close();
+      } catch {
+        // Classification is complete; preserve the existing close-error policy
+        // used by media signature verification.
+      }
+    }
+  }
+}
+
 export async function detectFileType(
   filePath: string,
 ): Promise<DetectedFileType> {
@@ -262,18 +329,14 @@ export async function detectFileType(
   ) {
     const category = resolveMediaCategory(lookedUpMimeType);
     if (category) {
-      if (await verifyMediaSignature(filePath, category.signatures)) {
-        return category.type;
-      }
-      // Signature did not verify. If the content is clearly text, reclassify
-      // as text to avoid sending source/text as base64 media (provider 400).
-      // Binary-but-unrecognized content is classified as binary rather than
-      // the media type: an unverified binary blob sent as base64 media would
-      // trigger the same provider 400 errors this feature prevents.
-      if (!(await isBinaryFile(filePath))) {
-        return 'text';
-      }
-      return 'binary';
+      // Signature verification and spoofed-media text/binary fallback share
+      // one file handle. This preserves the content classification contract
+      // while avoiding a second open/read for every unverified media path.
+      return classifyMediaCandidate(
+        filePath,
+        category.type,
+        category.signatures,
+      );
     }
   }
 
