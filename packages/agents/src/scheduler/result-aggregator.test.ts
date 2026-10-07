@@ -676,7 +676,7 @@ describe('ResultAggregator', () => {
         getEphemeralSettings: () => ({ 'tool-output-max-tokens': 2000 }),
       } as ToolOutputSettingsProvider);
 
-      agg.beginBatch(2); // per-tool budget floored at 1000 tokens
+      agg.beginBatch(2); // initial fair share is 1000 tokens
       const oversized = Array.from(
         { length: 3000 },
         (_, index) => `word${index}`,
