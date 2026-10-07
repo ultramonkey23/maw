@@ -69,7 +69,11 @@ node -e '
 
 if [ "${1:-}" = '--doctor' ]; then
   printf 'MAW Termux: runtime found\n'
+  printf 'Preferred Termux Bun: %s\n' "$termux_bun_version"
   printf 'Bun: %s (%s)\n' "$bun_path" "$bun_version"
+  if [ "$bun_version" != "$termux_bun_version" ]; then
+    printf 'Bun fallback active: selected %s instead of preferred %s\n' "$bun_version" "$termux_bun_version"
+  fi
   if "$bun_path" -e 'process.exit(typeof Bun.Image === "function" ? 0 : 1)' >/dev/null 2>&1; then
     printf 'Bun.Image: available\n'
   else
