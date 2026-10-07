@@ -137,6 +137,7 @@
     "test:issue-2603-smoke": "node scripts/tests/issue-2603-release-install-smoke.cjs",
     "test:issue-2603-benchmark": "node scripts/tests/issue-2603-startup-benchmark.cjs",
     "test:windows-installed-smoke": "node scripts/windows-installed-command-smoke.cjs",
+    "test:maw-launchers": "node --test scripts/tests/maw-launcher-install-smoke.cjs",
     "clean": "bun scripts/clean.ts",
     "generate:release-notes": "bun scripts/generate-release-notes.ts",
     "bundle:cli": "bun scripts/bun-build.config.ts --cli-only",
