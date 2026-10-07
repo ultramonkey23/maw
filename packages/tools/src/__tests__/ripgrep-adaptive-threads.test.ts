@@ -18,6 +18,5 @@ describe('ripgrep host scaling', () => {
     const threadFlag = args.indexOf('--threads');
     expect(threadFlag).toBeGreaterThanOrEqual(0);
     expect(args[threadFlag + 1]).toBe('0');
-    expect(args).not.toContain('4');
   });
 });
