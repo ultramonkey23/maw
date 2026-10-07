@@ -597,7 +597,7 @@ export function validatePositiveInteger(
 }
 
 export function validateGrepFlags(flags: string[]): void {
-  const validFlags = ['-i', '-v', '-E', '-F', '-x', '-w'];
+  const validFlags = ['-i', '-v'];
   for (const flag of flags) {
     if (!validFlags.includes(flag)) {
       throw new Error(
