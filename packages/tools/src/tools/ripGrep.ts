@@ -131,7 +131,10 @@ export function buildRipgrepArgs(
     rgArgs.push('--ignore-file', ignoreOptions.llxprtIgnoreFilePath);
   }
 
-  rgArgs.push('--threads', '4');
+  // Let ripgrep choose the worker count from the live host. Its native
+  // --threads=0 heuristic adapts to available CPUs instead of imposing MAW's
+  // old four-thread ceiling on high-core desktops/NUCs or oversizing tiny hosts.
+  rgArgs.push('--threads', '0');
   rgArgs.push(absolutePath);
   return rgArgs;
 }
