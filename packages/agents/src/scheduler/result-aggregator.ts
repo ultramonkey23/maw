@@ -140,6 +140,25 @@ export class ResultAggregator {
 
   // ---- public buffering API ------------------------------------------------
 
+  /** Keep call-id and execution-order indexes in lockstep. */
+  private storeBufferedEntry(entry: BufferedEntry): void {
+    const previousByCallId = this.pendingResults.get(entry.callId);
+    if (previousByCallId) {
+      this.pendingResultsByExecutionIndex.delete(
+        previousByCallId.executionIndex,
+      );
+    }
+
+    const previousByExecutionIndex =
+      this.pendingResultsByExecutionIndex.get(entry.executionIndex);
+    if (previousByExecutionIndex) {
+      this.pendingResults.delete(previousByExecutionIndex.callId);
+    }
+
+    this.pendingResults.set(entry.callId, entry);
+    this.pendingResultsByExecutionIndex.set(entry.executionIndex, entry);
+  }
+
   /** Store a successful tool result for ordered publishing. */
   bufferResult(
     callId: string,
@@ -155,8 +174,7 @@ export class ResultAggregator {
       scheduledCall,
       executionIndex,
     };
-    this.pendingResults.set(callId, entry);
-    this.pendingResultsByExecutionIndex.set(executionIndex, entry);
+    this.storeBufferedEntry(entry);
   }
 
   /** Store an error result (ToolResult with `.error` set) for ordered publishing. */
@@ -182,8 +200,7 @@ export class ResultAggregator {
       scheduledCall,
       executionIndex,
     };
-    this.pendingResults.set(callId, entry);
-    this.pendingResultsByExecutionIndex.set(executionIndex, entry);
+    this.storeBufferedEntry(entry);
   }
 
   /**
@@ -213,8 +230,7 @@ export class ResultAggregator {
       executionIndex,
       isCancelled: true,
     };
-    this.pendingResults.set(callId, entry);
-    this.pendingResultsByExecutionIndex.set(executionIndex, entry);
+    this.storeBufferedEntry(entry);
   }
 
   // ---- batch initialisation ------------------------------------------------
