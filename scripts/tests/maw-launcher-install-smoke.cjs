@@ -153,7 +153,7 @@ test(
   },
 );
 
-test('Windows installer persists user PATH without editing PowerShell profiles', () => {
+test('Windows installer persists PATH and resolves Node dynamically without profile edits', () => {
   const source = fs.readFileSync(
     path.join(repoRoot, 'scripts', 'install-maw-windows.ps1'),
     'utf8',
@@ -161,7 +161,11 @@ test('Windows installer persists user PATH without editing PowerShell profiles',
   assert.match(source, /SetEnvironmentVariable\('Path'/);
   assert.match(source, /EnvironmentVariableTarget\]::User/);
   assert.match(source, /Assert-LauncherResolution/);
+  assert.match(source, /NoDefaultCurrentDirectoryInExePath=1/);
+  assert.match(source, /node\.exe/);
+  assert.match(source, /Test-LegacyGeneratedManagedBody/);
   assert.doesNotMatch(source, /\$PROFILE|Microsoft\.PowerShell_profile\.ps1/);
+  assert.doesNotMatch(source, /Get-ManagedBody[\s\S]*\$node[\s\S]*EntryPath/);
 });
 
 function findPowerShell() {
@@ -177,7 +181,7 @@ function psQuote(value) {
 }
 
 test(
-  'Windows installer exposes all MAW commands in the current PowerShell without changing cwd',
+  'Windows launcher follows relocated PATH Node, rejects cwd shadowing, and keeps cwd',
   { skip: process.platform !== 'win32' },
   () => {
     const engine = findPowerShell();
@@ -186,24 +190,77 @@ test(
     try {
       const binDir = path.join(root, 'bin');
       const work = path.join(root, 'other-project');
+      const nodeA = path.join(root, 'node-a');
+      const nodeB = path.join(root, 'node-b');
       fs.mkdirSync(work, { recursive: true });
+      fs.mkdirSync(nodeA, { recursive: true });
+      fs.mkdirSync(nodeB, { recursive: true });
+      fs.copyFileSync(process.execPath, path.join(nodeA, 'node.exe'));
+
       const script = path.join(root, 'scripts', 'install-maw-windows.ps1');
       const expected = path.join(binDir, 'maw.cmd');
+      const initialPath = nodeA;
+      const relocatedPath = `${binDir};${nodeB}`;
       const command = [
         "$ErrorActionPreference = 'Stop'",
+        `$env:Path = ${psQuote(initialPath)}`,
         `& ${psQuote(script)} -BinDir ${psQuote(binDir)} -NoUserPathUpdate`,
+        `$resolved = (Get-Command maw -CommandType Application -ErrorAction Stop).Source`,
+        `if ([IO.Path]::GetFullPath($resolved) -ne [IO.Path]::GetFullPath(${psQuote(expected)})) { throw 'maw resolution mismatch' }`,
+        `Remove-Item -LiteralPath ${psQuote(path.join(nodeA, 'node.exe'))} -Force`,
+        `Copy-Item -LiteralPath ${psQuote(process.execPath)} -Destination ${psQuote(path.join(nodeB, 'node.exe'))}`,
+        `Set-Content -LiteralPath ${psQuote(path.join(work, 'node.exe'))} -Value 'cwd shadow must never execute' -Encoding ASCII`,
+        `$env:Path = ${psQuote(relocatedPath)}`,
         `Push-Location ${psQuote(work)}`,
         'try {',
-        "  $resolved = (Get-Command maw -CommandType Application -ErrorAction Stop).Source",
-        `  if ([IO.Path]::GetFullPath($resolved) -ne [IO.Path]::GetFullPath(${psQuote(expected)})) { throw 'maw resolution mismatch' }`,
         '  $reported = (maw | Out-String).Trim()',
-        "  if ($reported -ne (Get-Location).Path) { throw 'maw changed the caller cwd' }",
+        "  if ($reported -ne (Get-Location).Path) { throw 'maw did not follow relocated PATH Node or changed caller cwd' }",
         '} finally { Pop-Location }',
       ].join('; ');
       const result = spawnSync(engine, ['-NoProfile', '-Command', command], {
         encoding: 'utf8',
       });
       assert.equal(result.status, 0, result.stderr || result.stdout);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Windows installer upgrades only the previous generated absolute-Node launcher',
+  { skip: process.platform !== 'win32' },
+  () => {
+    const engine = findPowerShell();
+    assert.ok(engine, 'PowerShell executable not found');
+    const root = fixtureRoot();
+    try {
+      const binDir = path.join(root, 'bin');
+      const nodeDir = path.join(root, 'node');
+      fs.mkdirSync(binDir, { recursive: true });
+      fs.mkdirSync(nodeDir, { recursive: true });
+      fs.copyFileSync(process.execPath, path.join(nodeDir, 'node.exe'));
+      const script = path.join(root, 'scripts', 'install-maw-windows.ps1');
+      const entry = path.join(root, 'packages', 'cli', 'bin', 'maw.mjs');
+      const legacyBody =
+        '@echo off\r\n' +
+        'rem MAW managed launcher\r\n' +
+        `"C:\\stale-node\\node.exe" "${entry}" %*\r\n`;
+      fs.writeFileSync(path.join(binDir, 'maw.cmd'), legacyBody, 'ascii');
+
+      const command = [
+        "$ErrorActionPreference = 'Stop'",
+        `$env:Path = ${psQuote(nodeDir)}`,
+        `& ${psQuote(script)} -BinDir ${psQuote(binDir)} -NoUserPathUpdate`,
+      ].join('; ');
+      const result = spawnSync(engine, ['-NoProfile', '-Command', command], {
+        encoding: 'utf8',
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const upgraded = fs.readFileSync(path.join(binDir, 'maw.cmd'), 'ascii');
+      assert.match(upgraded, /NoDefaultCurrentDirectoryInExePath=1/);
+      assert.match(upgraded, /node\.exe/);
+      assert.doesNotMatch(upgraded, /C:\\stale-node\\node\.exe/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
