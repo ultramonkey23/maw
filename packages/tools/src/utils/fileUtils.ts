@@ -227,9 +227,18 @@ export async function isBinaryFile(filePath: string): Promise<boolean> {
     }
   }
 }
+export type DetectedFileType =
+  | 'text'
+  | 'image'
+  | 'pdf'
+  | 'audio'
+  | 'video'
+  | 'binary'
+  | 'svg';
+
 export async function detectFileType(
   filePath: string,
-): Promise<'text' | 'image' | 'pdf' | 'audio' | 'video' | 'binary' | 'svg'> {
+): Promise<DetectedFileType> {
   const ext = path.extname(filePath).toLowerCase();
 
   if (['.ts', '.mts', '.cts', '.tsx'].includes(ext)) {
@@ -313,12 +322,12 @@ export async function shouldResizeExplicitImage(
   filePath: string,
   inputPatterns: readonly string[],
   hasResizePolicy: boolean,
+  detectedFileType?: DetectedFileType,
 ): Promise<boolean> {
-  return (
-    hasResizePolicy &&
-    isAssetExplicitlyRequested(filePath, inputPatterns) &&
-    (await detectFileType(filePath)) === 'image'
-  );
+  if (!hasResizePolicy || !isAssetExplicitlyRequested(filePath, inputPatterns)) {
+    return false;
+  }
+  return (detectedFileType ?? (await detectFileType(filePath))) === 'image';
 }
 
 export function getReturnedByteLength(result: ProcessedFileReadResult): number {
