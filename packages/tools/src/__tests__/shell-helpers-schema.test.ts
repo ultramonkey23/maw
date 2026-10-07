@@ -247,13 +247,16 @@ describe('ShellTool schema output filters', () => {
     expect(getObjectProperty(items, 'enum')).toStrictEqual(['-i', '-v']);
   });
 
-  it('tells the model to use filters for noisy commands', () => {
-    mockPlatform.mockReturnValue('darwin');
-    const description = createShellTool().schema.description ?? '';
-    expect(description).toContain('grep_pattern');
-    expect(description).toContain('head_lines/tail_lines');
-    expect(description).toContain('exit status');
-  });
+  it.each(['darwin', 'win32'] as const)(
+    'tells the model to use filters for noisy commands on %s',
+    (platform) => {
+      mockPlatform.mockReturnValue(platform);
+      const description = createShellTool().schema.description ?? '';
+      expect(description).toContain('grep_pattern');
+      expect(description).toContain('head_lines/tail_lines');
+      expect(description).toContain('exit status');
+    },
+  );
 });
 
 describe('ShellTool schema is_background property', () => {
