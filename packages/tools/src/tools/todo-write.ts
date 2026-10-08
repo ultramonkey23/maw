@@ -363,17 +363,18 @@ ${emojiResult.systemFeedback}
    * schema requires. Discard unverified model-supplied summaries while keeping
    * actual timestamped history supplied by internal callers.
    */
-  private hasRecordedToolCalls(value: unknown): boolean {
-    return (
-      Array.isArray(value) &&
-      value.every(
-        (call) =>
-          call !== null &&
-          typeof call === 'object' &&
-          call.timestamp instanceof Date &&
-          !Number.isNaN(call.timestamp.getTime()),
-      )
+  private recordedToolCalls(value: unknown): Todo['toolCalls'] {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+    const recorded = value.filter(
+      (call): call is NonNullable<Todo['toolCalls']>[number] =>
+        call !== null &&
+        typeof call === 'object' &&
+        call.timestamp instanceof Date &&
+        !Number.isNaN(call.timestamp.getTime()),
     );
+    return recorded.length > 0 ? recorded : undefined;
   }
 
   private normalizeTodos(rawTodos: TodoWriteParams['todos']): Todo[] {
@@ -400,7 +401,10 @@ ${emojiResult.systemFeedback}
               ...subtask,
               id: subtaskId,
             };
-            if (!this.hasRecordedToolCalls(subtask?.toolCalls)) {
+            const recorded = this.recordedToolCalls(subtask?.toolCalls);
+            if (recorded) {
+              normalizedSubtask.toolCalls = recorded;
+            } else {
               delete normalizedSubtask.toolCalls;
             }
             return normalizedSubtask;
@@ -417,7 +421,10 @@ ${emojiResult.systemFeedback}
         id: normalizedId,
         status,
       };
-      if (!this.hasRecordedToolCalls(rawTodo.toolCalls)) {
+      const recorded = this.recordedToolCalls(rawTodo.toolCalls);
+      if (recorded) {
+        normalized.toolCalls = recorded;
+      } else {
         delete normalized.toolCalls;
       }
       if (hasSubtasks) {
