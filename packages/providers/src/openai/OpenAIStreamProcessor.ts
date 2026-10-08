@@ -76,8 +76,8 @@ export interface StreamProcessorDeps {
    */
   onRawTokenDelta?: () => void;
   /**
-   * A parsed Chat Completions SSE chunk proves provider liveness, even if
-   * reasoning, tool-call or usage data is buffered until stream completion.
+   * A token-bearing Chat Completions delta proves model progress, even if
+   * reasoning or tool-call data is buffered until stream completion.
    * This signal does not add any user-visible stream content.
    */
   onStreamLiveness?: StreamLivenessListener;
@@ -477,19 +477,6 @@ async function* processStreamingChunk(
   const parsedData = parseChunkData(chunkRecord);
   checkStreamingError(chunkRecord, parsedData);
 
-  // A valid, parsed Chat Completions frame is transport progress, even when
-  // no IContent is emitted for this frame (e.g. reasoning-only or usage-only).
-  // The optional liveness observer is diagnostic infrastructure: its failure
-  // must not interrupt the model stream.
-  try {
-    deps.onStreamLiveness?.({
-      sourceEvent: 'chat.completion.chunk',
-      sseObserved: true,
-    });
-  } catch {
-    // Ignore observer failures, as in the Responses SSE parser.
-  }
-
   // Extract usage information
   if (chunk.usage) {
     state.streamingUsage = chunk.usage;
@@ -514,9 +501,21 @@ async function* processStreamingChunk(
     return;
   }
 
-  // One raw-timing signal per raw choice regardless of how many
-  // token-bearing fields the choice carries (issue #3473).
-  const notifyRawDelta = createPerChoiceNotifier(deps.onRawTokenDelta);
+  // Only token-bearing choices count as model progress. A role-only or
+  // usage-only frame must not disable the first-response guard: with the
+  // default inter-chunk timeout disabled, that could otherwise conceal a
+  // stream that hangs immediately after its initial framing.
+  const notifyRawDelta = createPerChoiceNotifier(() => {
+    deps.onRawTokenDelta?.();
+    try {
+      deps.onStreamLiveness?.({
+        sourceEvent: 'chat.completion.delta',
+        sseObserved: true,
+      });
+    } catch {
+      // Observers must not break provider streaming.
+    }
+  });
 
   processReasoningDelta(choice, state, deps, notifyRawDelta);
 
