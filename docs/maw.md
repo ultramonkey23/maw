@@ -121,6 +121,32 @@ code highlighting, low-color fallbacks, and custom LLxprt themes remain
 separate. An actual Windows/Termux re-launch is still needed to verify
 terminal/font rendering.
 
+## First-response timeouts
+
+MAW uses two distinct watchdogs around model streaming, on both Windows and
+Android/Termux:
+
+- First response: defaults to 300000 ms (5 minutes). It covers provider
+  activation and the wait for initial model progress. Use
+  `/set stream-first-response-timeout-ms 600000` as a temporary diagnostic
+  override for legitimately slow requests, not as a replacement for
+  investigating repeated stalls. The environment variable
+  `LLXPRT_STREAM_FIRST_RESPONSE_TIMEOUT_MS` takes precedence.
+- Inter-chunk idle: disabled by default. Use
+  `/set stream-idle-timeout-ms 300000` or the
+  `LLXPRT_STREAM_IDLE_TIMEOUT_MS` environment variable to bound later
+  stream silence after progress has been observed.
+
+The OpenAI-compatible Chat Completions path (including MAW's OpenRouter
+default) now reports token-bearing reasoning, text, and tool-call deltas to
+the shared liveness observer even when the model's output is buffered. Mere
+role-only and usage-only frames do not count as model progress, so an empty
+opening frame cannot silently disable the first-response guard. This does
+not prevent real upstream stalls, connection failures, or slow provider
+activation. For diagnosis, record the provider/model, which timeout fired,
+its threshold and configuration source, and whether any stream progress
+appeared. Never paste API keys from logs.
+
 ## Termux
 
 The experimental Android source launcher is documented in
