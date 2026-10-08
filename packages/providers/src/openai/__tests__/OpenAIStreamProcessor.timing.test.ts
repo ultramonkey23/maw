@@ -343,11 +343,12 @@ describe('issue #3473: OpenAI stream timing at raw token-bearing deltas', () => 
     config = runtime.config;
   });
 
-  it('reports usage-only and reasoning-only chunks while visible output remains buffered', async () => {
+  it('reports reasoning progress before output, without disarming on empty frames', async () => {
     const usageOnly = {
       ...makeFinishChunk(0),
       choices: [],
     };
+    const roleOnly = makeChunk({ role: 'assistant' }, null);
     const reasoning = makeChunk({ reasoning_content: 'thinking' }, null);
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -355,14 +356,15 @@ describe('issue #3473: OpenAI stream timing at raw token-bearing deltas', () => 
     });
     async function* gatedRawStream() {
       yield usageOnly;
+      yield roleOnly;
       yield reasoning;
       await gate;
-      yield makeFinishChunk(2);
+      yield makeChunk({ content: 'Done' }, 'stop');
     }
 
     const observed: StreamLivenessEvent[] = [];
     let wake!: () => void;
-    const receivedTwo = new Promise<void>((resolve) => {
+    const receivedReasoning = new Promise<void>((resolve) => {
       wake = resolve;
     });
     let finished = false;
@@ -371,7 +373,7 @@ describe('issue #3473: OpenAI stream timing at raw token-bearing deltas', () => 
         rawStream: gatedRawStream(),
         onStreamLiveness: (event) => {
           observed.push(event);
-          if (observed.length === 2) wake();
+          wake();
         },
       }),
     ).then((result) => {
@@ -379,25 +381,33 @@ describe('issue #3473: OpenAI stream timing at raw token-bearing deltas', () => 
       return result;
     });
 
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
-        receivedTwo,
-        sleep(2000).then(() => {
-          throw new Error('Raw Chat Completions liveness was not delivered');
+        receivedReasoning,
+        new Promise<never>((_resolve, reject) => {
+          deadline = setTimeout(
+            () => reject(new Error('Reasoning stream liveness not delivered')),
+            2000,
+          );
         }),
       ]);
       expect(finished).toBe(false);
       expect(observed).toStrictEqual([
-        { sourceEvent: 'chat.completion.chunk', sseObserved: true },
-        { sourceEvent: 'chat.completion.chunk', sseObserved: true },
+        { sourceEvent: 'chat.completion.delta', sseObserved: true },
       ]);
     } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
       release();
     }
 
     const output = await reading;
-    expect(output.some((part) => part.blocks.some((block) => block.type === 'thinking'))).toBe(true);
-    expect(observed).toHaveLength(3);
+    expect(
+      output.some((part) =>
+        part.blocks.some((block) => block.type === 'thinking'),
+      ),
+    ).toBe(true);
+    expect(observed).toHaveLength(2);
   });
 
   it('ignores throwing liveness observers without changing semantic output', async () => {
@@ -417,7 +427,8 @@ describe('issue #3473: OpenAI stream timing at raw token-bearing deltas', () => 
       }),
     );
     expect(withObserver).toStrictEqual(baseline);
-    expect(callback).toHaveBeenCalledTimes(chunks.length);
+    // The terminal usage/finish-only chunk does not establish model progress.
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 
   // B3: GREEN guard post-remediation: visible stream contract (pins AC-7).
