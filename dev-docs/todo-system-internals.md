@@ -34,6 +34,14 @@ Creates, updates, or overwrites the entire todo list for the active session.
       current status.
     - `subtasks` (optional): nested task objects with the same shape.
 
+Runtime-observed `toolCalls` history is **not** part of the model-facing
+`todo_write` schema. MAW preserves genuinely recorded history, whose timestamps
+are JavaScript `Date` instances, but discards untimestamped or JSON-encoded
+model-supplied call summaries. This avoids treating a model's description of
+work as evidence that a tool actually ran, and prevents incompatible generated
+metadata from failing an otherwise valid task-list write. This rule is shared
+across Windows, Termux, and other platforms.
+
 - **Behavior**: the tool replaces the current todo list entirely. In
   non-interactive sessions it returns a simplified markdown view. In interactive
   sessions the CLI renders the Todo panel; when the panel is hidden
