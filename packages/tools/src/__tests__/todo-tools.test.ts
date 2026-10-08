@@ -160,6 +160,44 @@ describe('Todo Tool Group Behavioral Tests @plan:PLAN-20260608-ISSUE1585.P10', (
       );
     });
 
+    it('retains actual recorded calls even alongside unverified summaries', async () => {
+      const service = createFakeTodoService();
+      const result = await new TodoWriteTool(service).validateBuildAndExecute(
+        {
+          todos: [
+            {
+              id: 'task',
+              content: 'Record source evidence',
+              status: 'in_progress',
+              toolCalls: [
+                {
+                  id: 'observed',
+                  name: 'read_file',
+                  parameters: { file_path: 'verified.ts' },
+                  timestamp: new Date('2026-10-07T00:00:00.000Z'),
+                },
+                {
+                  id: 'unverified',
+                  name: 'shell',
+                  parameters: { command: 'not-executed' },
+                },
+              ],
+            },
+          ],
+        } as unknown as TodoWriteParams,
+        new AbortController().signal,
+      );
+      expect(result.error).toBeUndefined();
+
+      const read = await new TodoReadTool(service).validateBuildAndExecute(
+        {},
+        new AbortController().signal,
+      );
+      expect(read.error).toBeUndefined();
+      expect(read.llmContent).toContain('verified.ts');
+      expect(read.llmContent).not.toContain('not-executed');
+    });
+
     it('accepts a JSON task list without persisting invented tool histories', async () => {
       const service = createFakeTodoService();
       const writeTool = new TodoWriteTool(service);
