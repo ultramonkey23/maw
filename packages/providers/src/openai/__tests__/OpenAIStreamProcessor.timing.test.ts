@@ -29,6 +29,7 @@
 import { describe, it, expect, beforeEach, vi } from 'bun:test';
 import OpenAI from 'openai';
 import type { IContent } from '@vybestack/llxprt-code-core/services/history/IContent.js';
+import type { StreamLivenessEvent } from '@vybestack/llxprt-code-core/utils/streamIdleTimeout.js';
 import type { ApiResponseEvent } from '@vybestack/llxprt-code-core/telemetry/types.js';
 import type { Config } from '@vybestack/llxprt-code-core/config/config.js';
 import { DebugLogger } from '@vybestack/llxprt-code-core/debug/index.js';
@@ -188,6 +189,7 @@ function createProviderStream(
       undefined
     >;
     onRawTokenDelta?: () => void;
+    onStreamLiveness?: (event: StreamLivenessEvent) => void;
   },
 ): AsyncGenerator<IContent, void, unknown> {
   return processStreamingResponse(
@@ -200,7 +202,11 @@ function createProviderStream(
     new OpenAI({ apiKey: 'test-api-key' }),
     undefined,
     undefined,
-    { ...makeDeps(), onRawTokenDelta: options?.onRawTokenDelta },
+    {
+      ...makeDeps(),
+      onRawTokenDelta: options?.onRawTokenDelta,
+      onStreamLiveness: options?.onStreamLiveness,
+    },
     async function* () {
       yield* [];
     },
@@ -335,6 +341,83 @@ describe('issue #3473: OpenAI stream timing at raw token-bearing deltas', () => 
       metadata: { suite: 'OpenAIStreamProcessor.timing.test' },
     });
     config = runtime.config;
+  });
+
+  it('reports usage-only and reasoning-only chunks while visible output remains buffered', async () => {
+    const usageOnly = {
+      ...makeFinishChunk(0),
+      choices: [],
+    };
+    const reasoning = makeChunk({ reasoning_content: 'thinking' }, null);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    async function* gatedRawStream() {
+      yield usageOnly;
+      yield reasoning;
+      await gate;
+      yield makeFinishChunk(2);
+    }
+
+    const observed: StreamLivenessEvent[] = [];
+    let wake!: () => void;
+    const receivedTwo = new Promise<void>((resolve) => {
+      wake = resolve;
+    });
+    let finished = false;
+    const reading = collectResults(
+      createProviderStream([], 0, 'openai', {
+        rawStream: gatedRawStream(),
+        onStreamLiveness: (event) => {
+          observed.push(event);
+          if (observed.length === 2) wake();
+        },
+      }),
+    ).then((result) => {
+      finished = true;
+      return result;
+    });
+
+    try {
+      await Promise.race([
+        receivedTwo,
+        sleep(2000).then(() => {
+          throw new Error('Raw Chat Completions liveness was not delivered');
+        }),
+      ]);
+      expect(finished).toBe(false);
+      expect(observed).toStrictEqual([
+        { sourceEvent: 'chat.completion.chunk', sseObserved: true },
+        { sourceEvent: 'chat.completion.chunk', sseObserved: true },
+      ]);
+    } finally {
+      release();
+    }
+
+    const output = await reading;
+    expect(output.some((part) => part.blocks.some((block) => block.type === 'thinking'))).toBe(true);
+    expect(observed).toHaveLength(3);
+  });
+
+  it('ignores throwing liveness observers without changing semantic output', async () => {
+    const chunks = [
+      makeChunk({ content: 'Hello' }, null),
+      makeFinishChunk(2),
+    ];
+    const baseline = await collectResults(
+      createProviderStream(chunks, 0, 'openai'),
+    );
+    const callback = vi.fn(() => {
+      throw new Error('observer failure');
+    });
+    const withObserver = await collectResults(
+      createProviderStream(chunks, 0, 'openai', {
+        onStreamLiveness: callback,
+      }),
+    );
+    expect(withObserver).toStrictEqual(baseline);
+    expect(callback).toHaveBeenCalledTimes(chunks.length);
   });
 
   // B3: GREEN guard post-remediation: visible stream contract (pins AC-7).
