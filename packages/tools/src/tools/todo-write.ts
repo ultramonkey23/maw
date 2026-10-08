@@ -81,28 +81,6 @@ export class TodoWrite
                     description: 'Description of the subtask',
                     minLength: 1,
                   },
-                  toolCalls: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        id: {
-                          type: Type.STRING,
-                          description: 'Unique identifier for the tool call',
-                        },
-                        name: {
-                          type: Type.STRING,
-                          description: 'Name of the tool being called',
-                        },
-                        parameters: {
-                          type: Type.OBJECT,
-                          description: 'Parameters for the tool call',
-                        },
-                      },
-                      required: ['id', 'name', 'parameters'],
-                    },
-                    description: 'Tool calls associated with the subtask',
-                  },
                 },
                 required: ['id', 'content'],
               },
@@ -379,6 +357,25 @@ ${emojiResult.systemFeedback}
     };
   }
 
+  /**
+   * Tool-call history is observed by MAW, not authored by the model. JSON
+   * tool arguments cannot contain Date instances, which the stored history
+   * schema requires. Discard unverified model-supplied summaries while keeping
+   * actual timestamped history supplied by internal callers.
+   */
+  private hasRecordedToolCalls(value: unknown): boolean {
+    return (
+      Array.isArray(value) &&
+      value.every(
+        (call) =>
+          call !== null &&
+          typeof call === 'object' &&
+          call.timestamp instanceof Date &&
+          !Number.isNaN(call.timestamp.getTime()),
+      )
+    );
+  }
+
   private normalizeTodos(rawTodos: TodoWriteParams['todos']): Todo[] {
     const normalized = rawTodos.map((todo, index) => {
       const rawTodo = todo as Record<string, unknown>;
@@ -399,10 +396,14 @@ ${emojiResult.systemFeedback}
               `${subtask.id}`.trim() !== ''
                 ? String(subtask.id)
                 : `${normalizedId}-${subIndex + 1}`;
-            return {
+            const normalizedSubtask = {
               ...subtask,
               id: subtaskId,
             };
+            if (!this.hasRecordedToolCalls(subtask?.toolCalls)) {
+              delete normalizedSubtask.toolCalls;
+            }
+            return normalizedSubtask;
           })
         : undefined;
 
@@ -416,6 +417,9 @@ ${emojiResult.systemFeedback}
         id: normalizedId,
         status,
       };
+      if (!this.hasRecordedToolCalls(rawTodo.toolCalls)) {
+        delete normalized.toolCalls;
+      }
       if (hasSubtasks) {
         normalized.subtasks = normalizedSubtasks;
       }
