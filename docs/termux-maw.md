@@ -61,12 +61,19 @@ git branch --show-current
 git status --short
 ```
 
-If the checkout is on `main`, follows `ultramonkey23/maw`, and has no
-local changes that would conflict, fast-forward without overwriting work:
+MAW development changes land on `master`. A fresh GitHub clone may initially
+check out the repository's `main` default branch instead. After verifying
+the origin and confirming that `git status --short` is clean, switch to
+`master` and fast-forward without overwriting local work:
 
 ```sh
-git pull --ff-only origin main
+git fetch origin master
+git switch master
+git pull --ff-only origin master
 ```
+
+If the working tree is dirty or `master` has diverged, stop and reconcile
+the local state before switching or pulling; do not reset or force-checkout.
 
 The Android-specific source launcher must exist after checkout/update:
 `test -f scripts/maw-termux.sh`. If it does not, stop and inspect the
