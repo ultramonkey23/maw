@@ -24,6 +24,7 @@ import { describe, it, expect } from 'bun:test';
 import { TodoPauseTool, TodoReadTool, TodoWriteTool } from '../index.js';
 import type { ITodoService, TodoStore } from '../interfaces/index.js';
 import type { Todo } from '../types/todo-schemas.js';
+import type { TodoWriteParams } from '../tools/todo-write.js';
 import type { ToolContext } from '../types/tool-context.js';
 import { todoEvents, type TodoUpdateEvent } from '../tools/todo-events.js';
 
@@ -145,6 +146,71 @@ describe('Todo Tool Group Behavioral Tests @plan:PLAN-20260608-ISSUE1585.P10', (
       expect(readResult.error).toBeUndefined();
       expect(readResult.llmContent).toContain('Second batch item 1');
       expect(readResult.llmContent).not.toContain('First batch');
+    });
+  });
+
+  describe('TodoWrite model input versus observed tool history', () => {
+    it('does not advertise toolCalls as model input', () => {
+      const tool = new TodoWriteTool(createFakeTodoService());
+      // Tool-call histories are runtime observations, not model-authored
+      // arguments. The public schema must not solicit fields that require
+      // runtime Date instances (which JSON API calls cannot supply).
+      expect(JSON.stringify(tool.schema.parametersJsonSchema)).not.toContain(
+        '"toolCalls"',
+      );
+    });
+
+    it('accepts a JSON task list without persisting invented tool histories', async () => {
+      const service = createFakeTodoService();
+      const writeTool = new TodoWriteTool(service);
+      const modelArgs = {
+        todos: [
+          {
+            id: 'task',
+            content: 'Investigate API calls',
+            status: 'in_progress',
+            toolCalls: [
+              {
+                id: 'unverified-parent',
+                name: 'shell',
+                parameters: { command: 'echo not-executed' },
+                timestamp: '2026-10-07T00:00:00.000Z',
+              },
+            ],
+            subtasks: [
+              {
+                id: 'subtask',
+                content: 'Check model schema',
+                toolCalls: [
+                  {
+                    id: 'unverified-subtask',
+                    name: 'read_file',
+                    parameters: { file_path: 'not-executed.txt' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const originalArgs = JSON.stringify(modelArgs);
+
+      const written = await writeTool.validateBuildAndExecute(
+        modelArgs as unknown as TodoWriteParams,
+        new AbortController().signal,
+      );
+      expect(written.error).toBeUndefined();
+      expect(JSON.stringify(modelArgs)).toBe(originalArgs);
+
+      const read = await new TodoReadTool(service).validateBuildAndExecute(
+        {},
+        new AbortController().signal,
+      );
+      expect(read.error).toBeUndefined();
+      expect(read.llmContent).toContain('Investigate API calls');
+      expect(read.llmContent).toContain('Check model schema');
+      expect(read.llmContent).not.toContain('not-executed');
+      expect(read.llmContent).not.toContain('unverified');
     });
   });
 
