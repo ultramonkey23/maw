@@ -354,7 +354,11 @@ describe('issue #3473: OpenAI stream timing at raw token-bearing deltas', () => 
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    async function* gatedRawStream() {
+    async function* gatedRawStream(): AsyncGenerator<
+      OpenAI.Chat.Completions.ChatCompletionChunk,
+      void,
+      undefined
+    > {
       yield usageOnly;
       yield roleOnly;
       yield reasoning;
