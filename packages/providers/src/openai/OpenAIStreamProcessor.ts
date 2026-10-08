@@ -30,6 +30,7 @@ type MessageToolCallWithOptionalFunction = Omit<
 type ChunkDelta = OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta;
 
 import { type DebugLogger } from '@vybestack/llxprt-code-core/debug/index.js';
+import type { StreamLivenessListener } from '@vybestack/llxprt-code-core/utils/streamIdleTimeout.js';
 import { type ToolCallPipeline } from './ToolCallPipeline.js';
 import { type GemmaToolCallParser } from '@vybestack/llxprt-code-core/parsers/TextToolCallParser.js';
 import { extractThinkTagsAsBlock } from '../utils/thinkingExtraction.js';
@@ -74,6 +75,12 @@ export interface StreamProcessorDeps {
    * falls back to visible-chunk stamping.
    */
   onRawTokenDelta?: () => void;
+  /**
+   * A parsed Chat Completions SSE chunk proves provider liveness, even if
+   * reasoning, tool-call or usage data is buffered until stream completion.
+   * This signal does not add any user-visible stream content.
+   */
+  onStreamLiveness?: StreamLivenessListener;
 }
 
 /**
@@ -469,6 +476,19 @@ async function* processStreamingChunk(
   const chunkRecord = chunk as unknown as Record<string, unknown>;
   const parsedData = parseChunkData(chunkRecord);
   checkStreamingError(chunkRecord, parsedData);
+
+  // A valid, parsed Chat Completions frame is transport progress, even when
+  // no IContent is emitted for this frame (e.g. reasoning-only or usage-only).
+  // The optional liveness observer is diagnostic infrastructure: its failure
+  // must not interrupt the model stream.
+  try {
+    deps.onStreamLiveness?.({
+      sourceEvent: 'chat.completion.chunk',
+      sseObserved: true,
+    });
+  } catch {
+    // Ignore observer failures, as in the Responses SSE parser.
+  }
 
   // Extract usage information
   if (chunk.usage) {
