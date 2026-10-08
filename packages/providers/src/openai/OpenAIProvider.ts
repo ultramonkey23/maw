@@ -123,6 +123,7 @@ interface DispatchResponseOptions {
    * #3473). Undefined when no attempt-lifecycle observer is attached.
    */
   onRawTokenDelta: (() => void) | undefined;
+  onStreamLiveness: GenerateChatOptions['onStreamLiveness'];
 }
 
 export class OpenAIProvider extends BaseProvider implements IProvider {
@@ -637,6 +638,7 @@ export class OpenAIProvider extends BaseProvider implements IProvider {
         getBaseURL: () => this.getBaseURL(),
         reasoningFieldName: options.reasoningFieldName,
         onRawTokenDelta: options.onRawTokenDelta,
+        onStreamLiveness: options.onStreamLiveness,
       };
       yield* processStreamingResponse(
         options.response as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>,
@@ -825,6 +827,7 @@ export class OpenAIProvider extends BaseProvider implements IProvider {
       logger,
       reasoningFieldName,
       onRawTokenDelta: resolveRawTokenDeltaNotifier(options.metadata),
+      onStreamLiveness: options.onStreamLiveness,
     });
   }
 
