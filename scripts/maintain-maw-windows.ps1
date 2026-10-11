@@ -106,7 +106,41 @@ Push-Location -LiteralPath $RepoRoot
 try {
   Write-Host '[MAW 3/5] Preflighting versioned npm lock dependency edges'
   Invoke-Native $node @('--test', 'scripts/tests/maw-npm-lock-smoke.cjs')
-  Invoke-Native $npm @('ci', '--no-audit', '--no-fund')
+  # Bun's native Windows packages are optional dependencies. A user/global
+  # npm omit=optional setting otherwise leaves the bun installer with no
+  # @oven/bun-windows-x64 payload despite the lock containing the right entry.
+  # Match the repo's public resolved registry rather than a stale mirror.
+  $npmArgs = @(
+    'ci', '--include=optional', '--include=dev',
+    '--registry=https://registry.npmjs.org/', '--no-audit', '--no-fund'
+  )
+  try {
+    Invoke-Native $npm $npmArgs
+    Write-Host '[MAW] npm clean install completed with Windows native packages included.'
+  } catch {
+    $npmFailure = $_.Exception.Message
+    Write-Warning "npm clean install failed: $npmFailure"
+    # Do not edit package-lock.json, disable lifecycle scripts, or silently
+    # overwrite the checkout. Bun is this repository's supported install path.
+    # Fall back only if a usable Bun is ALREADY installed on the host.
+    $bunCmd = Get-Command -Name 'bun' -CommandType Application -ErrorAction SilentlyContinue |
+      Select-Object -First 1
+    if ($null -eq $bunCmd) {
+      throw ("npm install failed and Bun is not installed on PATH. " +
+        "Install Bun 1.3.14+ through your trusted Windows package manager, " +
+        "then rerun this same command. Original npm failure: $npmFailure")
+    }
+    $bun = $bunCmd.Source
+    $bunVersion = (& $bun --version | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $bunVersion -notmatch '^(\d+\.\d+\.\d+)') {
+      throw "An existing Bun was found at $bun but did not report a valid version; no fallback performed."
+    }
+    if ([version]$Matches[1] -lt [version]'1.3.14') {
+      throw "Existing Bun $bunVersion is older than the required 1.3.14; no fallback performed."
+    }
+    Write-Host "[MAW] Using supported frozen Bun install as recovery (Bun $bunVersion)."
+    Invoke-Native $bun @('install', '--frozen-lockfile')
+  }
   Write-Host '[MAW 4/5] Building MAW from current source'
   Invoke-Native $npm @('run', 'build')
 } finally {
