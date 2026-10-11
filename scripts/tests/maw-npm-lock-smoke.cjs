@@ -15,6 +15,10 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'ut
 const cliManifest = JSON.parse(fs.readFileSync(path.join(root, 'packages', 'cli', 'package.json'), 'utf8'));
 const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
 const packages = lock.packages;
+// Bun text lockfiles allow trailing commas (JSONC-style).
+const bunLock = JSON.parse(
+  fs.readFileSync(path.join(root, 'bun.lock'), 'utf8').replace(/,(\s*[}\]])/g, '$1'),
+);
 const android = '@oven/bun-linux-aarch64-android';
 
 function locked(pathname, version) {
@@ -37,6 +41,15 @@ test('Bun Android platform variants preserve both Windows lock consistency and T
   locked('node_modules/' + android, '1.4.2');
   locked('packages/cli/node_modules/' + android, '1.3.14');
   locked('node_modules/bun/node_modules/' + android, '1.3.14');
+  // The Bun lock must preserve BOTH sides of the split Android pin as well.
+  // Without these nested entries Bun 1.4.2 re-resolves and frozen install fails.
+  const bp = bunLock.packages;
+  assert.equal(bunLock.workspaces[''].optionalDependencies[android], '1.4.2');
+  assert.equal(bunLock.workspaces['packages/cli'].optionalDependencies[android], '1.3.14');
+  assert.equal(bp[android][0], android + '@1.4.2');
+  assert.equal(bp['bun/' + android][0], android + '@1.3.14');
+  assert.equal(bp['@vybestack/llxprt-code/' + android][0], android + '@1.3.14');
+
   // Windows x64 binary alternatives must be in the frozen npm tree before
   // Bun's npm installer runs. A package declaration alone is insufficient.
   for (const platform of ['@oven/bun-windows-x64', '@oven/bun-windows-x64-baseline']) {
