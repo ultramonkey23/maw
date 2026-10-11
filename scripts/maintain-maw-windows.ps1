@@ -104,6 +104,8 @@ if ($localSha -ne $latestSha) {
 Write-Host '[MAW 3/5] Installing repository-locked dependencies'
 Push-Location -LiteralPath $RepoRoot
 try {
+  Write-Host '[MAW 3/5] Preflighting versioned npm lock dependency edges'
+  Invoke-Native $node @('--test', 'scripts/tests/maw-npm-lock-smoke.cjs')
   Invoke-Native $npm @('ci', '--no-audit', '--no-fund')
   Write-Host '[MAW 4/5] Building MAW from current source'
   Invoke-Native $npm @('run', 'build')
