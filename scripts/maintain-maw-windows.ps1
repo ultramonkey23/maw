@@ -131,9 +131,17 @@ if (-not (Test-Path -LiteralPath $releasePath)) {
   $snapshotEdits = @(& $git -C $releasePath status --porcelain --untracked-files=no)
   if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect install snapshot.' }
   if (($snapshotEdits -join '').Trim()) {
-    throw "The dedicated install snapshot has tracked edits; refusing to overwrite: $releasePath. The active source checkout is unaffected."
+    # Even a previously staged release may be modified by another process.
+    # Keep it intact and use a fresh snapshot; never turn state into a blocker.
+    $previousRelease = $releasePath
+    $uniqueSuffix = [guid]::NewGuid().ToString('N').Substring(0, 8)
+    $releasePath = Join-Path $releaseRoot ($latestSha.Substring(0, 12) + '-' + $uniqueSuffix)
+    Write-Warning "Previous release snapshot has changes; preserving it at $previousRelease"
+    Write-Host "[MAW] Creating fresh detached install snapshot: $releasePath"
+    Invoke-Native $git @('-C', $RepoRoot, '-c', 'core.longpaths=true', 'worktree', 'add', '--detach', '--', $releasePath, $latestSha)
+  } else {
+    Write-Host "[MAW] Reusing detached snapshot: $releasePath"
   }
-  Write-Host "[MAW] Reusing detached snapshot: $releasePath"
 }
 
 # The release checkout is now the only checkout we install/build into.
