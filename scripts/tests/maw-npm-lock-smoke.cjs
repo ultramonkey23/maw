@@ -37,4 +37,12 @@ test('Bun Android platform variants preserve both Windows lock consistency and T
   locked('node_modules/' + android, '1.4.2');
   locked('packages/cli/node_modules/' + android, '1.3.14');
   locked('node_modules/bun/node_modules/' + android, '1.3.14');
+  // Windows x64 binary alternatives must be in the frozen npm tree before
+  // Bun's npm installer runs. A package declaration alone is insufficient.
+  for (const platform of ['@oven/bun-windows-x64', '@oven/bun-windows-x64-baseline']) {
+    assert.equal(manifest.optionalDependencies[platform], '1.3.14');
+    assert.equal(cliManifest.optionalDependencies[platform], '1.3.14');
+    assert.equal(packages['node_modules/bun'].optionalDependencies[platform], '1.3.14');
+    locked('node_modules/' + platform, '1.3.14');
+  }
 });
