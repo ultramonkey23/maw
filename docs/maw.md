@@ -46,19 +46,33 @@ current PowerShell session, so the repaired PATH is available immediately:
 Set-ExecutionPolicy -Scope Process Bypass -Force; $p = Join-Path $env:TEMP 'maintain-maw-windows.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/ultramonkey23/maw/main/scripts/maintain-maw-windows.ps1' -OutFile $p; & $p
 ```
 
-Then enter `lab-maw`. The updater verifies the MAW fork at `$HOME\maw`,
-fetches and fast-forwards `main` without discarding source edits, then runs
-`npm ci` to replace the broken dependency tree with npm's complete workspace
-links and TypeScript binaries. It builds with the installed Bun executable and
-repairs the three managed MAW launchers.
-Node 24+, Git, npm, and a standalone Bun 1.3.14+ must be available.
-Use `& $p -CheckOnly` to inspect
-local vs remote source without installing. The script reports the commit
-SHA, since the package version does not necessarily change on every commit.
+Then enter `lab-maw`. The updater fetches published `main` but **does not
+check out, merge, reset, stash, or build inside `$HOME\maw`**. That directory
+belongs to your development agents and can have dirty tracked files, generated
+state, unpushed local commits, and a non-main branch. None block updates.
+
+Instead the updater stages a detached Git worktree at
+`$HOME\.maw-runtimes\<commit-prefix>` from the latest remote main. It installs
+the complete npm workspace dependencies and builds there. Only after a
+successful build does it repair and verify the managed launchers pointing at
+the installed snapshot. A failed install/build leaves the previously installed
+launchers untouched. No new branch is created. Unpushed or uncommitted work in
+your active checkout is **preserved but not included** in the published build
+until it is committed and pushed to main.
+
+Node 24+, Git, npm, and standalone Bun 1.3.14+ must be installed.
+Use `& $p -CheckOnly` to fetch and inspect the install target without
+creating a worktree or installing anything.
 `--version` verifies command startup, not the live Lab MCP handshake.
 Once MAW is running, check `/mcp` to confirm Lab attachment.
 
-### Recover or upgrade an existing Windows checkout
+### Manually build the active development checkout
+
+The commands below intentionally act on the development checkout. They are
+**not** required for daily published MAW updates. If other agents are modifying
+the checkout, use the isolated updater above instead.
+
+### Manual Windows source build and launcher repair
 
 Run in **Windows PowerShell** from your existing MAW checkout (normally
 `C:\\Users\\harin\\maw`), with Node 24+ and Bun 1.3.14+ on PATH:
