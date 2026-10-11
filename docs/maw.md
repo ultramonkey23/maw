@@ -9,12 +9,19 @@ still take precedence, so the preference is a default rather than a lock.
 
 ## Source setup
 
-From a clean MAW checkout with Node 24+ and Bun 1.3.14+:
+From a clean MAW checkout with Node 24+ and an already installed Bun
+1.3.14+ on PATH:
 
 ```sh
-npm ci
+bun install
 npm run build
 ```
+
+MAW intentionally uses an existing Bun runtime for *source development*;
+it no longer installs Bun through the `bun` npm wrapper (whose postinstall
+can fail on Windows even when Bun is already available). The `@oven/bun-*`
+platform-specific optional packages remain locked for published CLI launchers.
+The Termux bootstrap still selects its independent Android Bun 1.4.2.
 
 The built CLI package exposes `maw`, `maw-lab`, and the exact `lab-maw` alias in
 addition to `llxprt`. On Windows, install/update their user-level launchers in
