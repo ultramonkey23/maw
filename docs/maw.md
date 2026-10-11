@@ -63,7 +63,7 @@ Run in **Windows PowerShell** from your existing MAW checkout (normally
 git status --short
 git branch --show-current
 git pull --ff-only origin main
-npm ci
+bun install --frozen-lockfile
 npm run build
 & .\\scripts\\install-maw-windows.ps1 -RepairManagedLaunchers -VerifyLaunch
 Get-Command lab-maw -All
