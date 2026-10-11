@@ -1,11 +1,14 @@
 # Copyright 2026 Ultramonkeydog. SPDX-License-Identifier: Apache-2.0
 <#
 .SYNOPSIS
-  Check, fast-forward update, rebuild, repair, and verify MAW on Windows.
+  Fetch, stage, build, and verify MAW without touching an active agent checkout.
 .DESCRIPTION
   Maintains the MAW fork, not the generic LLxprt npm package.
-  Refuses to overwrite local source edits, divergent commits, or non-MAW
-  launchers. Run in the current PowerShell so PATH updates are immediate.
+  Handles dirty source worktrees, unpushed commits, and parallel agent edits by
+  installing the remote main commit into a detached Git worktree. No stashing,
+  reset, merge, source checkout replacement, or branch creation. Installed
+  launchers point at the clean release snapshot, not the active source tree.
+  Run in the current PowerShell so PATH updates are immediate.
 #>
 param(
   [string]$RepoRoot = (Join-Path $HOME 'maw'),
@@ -54,15 +57,13 @@ $remoteUrl = (& $git -C $RepoRoot remote get-url origin | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $remoteUrl -notmatch '(?i)github\.com[:/]ultramonkey23/maw(?:\.git)?/?$') {
   throw "Unexpected origin '$remoteUrl'. Expected the ultramonkey23/maw fork; no changes made."
 }
+# The source checkout belongs to the user and their agents. It may contain
+# staged/unstaged changes, untracked state, unpushed commits, or a non-main branch.
+# Do not inspect its cleanliness to gate installation; never modify its files.
 $branch = (& $git -C $RepoRoot branch --show-current | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
-  throw "Checkout is on branch '$branch', not main. Preserve/resolve that branch before updating."
-}
-$dirty = @(& $git -C $RepoRoot status --porcelain --untracked-files=no)
-if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect local Git changes.' }
-if ($dirty.Count -gt 0 -and (($dirty -join '').Trim()).Length -gt 0) {
-  throw "Tracked local changes are present. They were not reset or stashed. Inspect with git status in $RepoRoot."
-}
+if ($LASTEXITCODE -ne 0) { throw 'Unable to determine active source branch.' }
+if ([string]::IsNullOrWhiteSpace($branch)) { $branch = '(detached HEAD)' }
+Write-Host "[MAW] Active source branch: $branch (never modified by the updater)"
 
 $node = Find-NativeCommand 'node'
 $npm = Find-NativeCommand 'npm'
@@ -73,36 +74,76 @@ if ($nodeParts.Count -lt 2 -or [int]$nodeParts[0] -lt 24) {
   throw "Node 24+ is required for this MAW source (found $nodeVersion). Upgrade Node, then rerun."
 }
 Write-Host "Node: $nodeVersion | MAW checkout: $RepoRoot"
-Write-Host "Git branch: $branch | origin: $remoteUrl"
+Write-Host "Source checkout: $RepoRoot | origin: $remoteUrl"
 
-Write-Host '[MAW 2/5] Fetching latest fork main without overwriting local work'
-Invoke-Native $git @('-C', $RepoRoot, 'fetch', 'origin', 'main')
+Write-Host '[MAW 2/5] Fetching published main; preserving the agent checkout'
+# Fetch the remote ref without checking out, merging, resetting, rebasing, or
+# stashing the user's active checkout. This also works when local HEAD is ahead
+# of or divergent from origin/main.
+Invoke-Native $git @('-C', $RepoRoot, 'fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main')
 $localSha = (& $git -C $RepoRoot rev-parse HEAD | Out-String).Trim()
-$latestSha = (& $git -C $RepoRoot rev-parse FETCH_HEAD | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or -not $latestSha) { throw 'Unable to resolve the fetched commit.' }
-& $git -C $RepoRoot merge-base --is-ancestor HEAD FETCH_HEAD
-$isFastForward = ($LASTEXITCODE -eq 0)
-Write-Host "Installed source: $localSha"
-Write-Host "Latest fetched:   $latestSha"
-if (-not $isFastForward) {
-  throw 'Local main has divergent/new commits. Refusing a reset or rebase; reconcile manually.'
-}
+if ($LASTEXITCODE -ne 0) { throw 'Unable to resolve active source HEAD.' }
+$latestSha = (& $git -C $RepoRoot rev-parse 'refs/remotes/origin/main' | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $latestSha -notmatch '^[0-9a-f]{40}$') { throw 'Unable to resolve latest remote main commit.' }
+Write-Host "Agent checkout HEAD (preserved): $localSha"
+Write-Host "Published main commit:          $latestSha"
+
+# Detached worktrees don't create a new branch or touch any files in $RepoRoot.
+# One snapshot per SHA also ensures a failed or in-progress deployment never
+# overwrites the previously working installation.
+$releaseRoot = Join-Path $HOME '.maw-runtimes'
+$releasePath = Join-Path $releaseRoot $latestSha.Substring(0, 12)
+$releasePath = [IO.Path]::GetFullPath($releasePath)
 if ($CheckOnly) {
-  if ($localSha -eq $latestSha) {
-    Write-Host 'MAW source is current. (CheckOnly: no install, rebuild, or launcher changes.)'
-  } else {
-    Write-Host 'A fast-forward MAW update is available. (CheckOnly: nothing installed.)'
-  }
+  Write-Host "Active checkout stays unchanged. Install snapshot: $releasePath"
+  Write-Host 'CheckOnly: no worktree, dependency install, build, or launcher changes.'
   return
 }
-if ($localSha -ne $latestSha) {
-  Invoke-Native $git @('-C', $RepoRoot, 'merge', '--ff-only', 'FETCH_HEAD')
+
+if (-not (Test-Path -LiteralPath $releaseRoot)) {
+  New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
+}
+if (-not (Test-Path -LiteralPath $releasePath)) {
+  Write-Host "[MAW] Creating detached build snapshot: $releasePath"
+  Invoke-Native $git @('-C', $RepoRoot, '-c', 'core.longpaths=true', 'worktree', 'add', '--detach', '--', $releasePath, $latestSha)
 } else {
-  Write-Host 'Already at latest fetched source.'
+  # Never silently adopt or overwrite a pre-existing unrelated directory.
+  # Check the Git worktree registry, not just the presence of a .git file.
+  $registered = @(& $git -C $RepoRoot worktree list --porcelain)
+  if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect registered Git worktrees.' }
+  $ownsRelease = $false
+  foreach ($item in $registered) {
+    if ($item -like 'worktree *') {
+      $registeredPath = [IO.Path]::GetFullPath($item.Substring(9).Trim())
+      if ([string]::Equals($registeredPath, $releasePath, [StringComparison]::OrdinalIgnoreCase)) {
+        $ownsRelease = $true
+        break
+      }
+    }
+  }
+  if (-not $ownsRelease) {
+    throw "Install snapshot path exists but is not registered as a worktree of $RepoRoot. Refusing to overwrite: $releasePath"
+  }
+  $snapshotSha = (& $git -C $releasePath rev-parse HEAD | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0 -or $snapshotSha -ne $latestSha) {
+    throw "Install snapshot at $releasePath is not the requested commit; refusing to change it."
+  }
+  $snapshotEdits = @(& $git -C $releasePath status --porcelain --untracked-files=no)
+  if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect install snapshot.' }
+  if (($snapshotEdits -join '').Trim()) {
+    throw "The dedicated install snapshot has tracked edits; refusing to overwrite: $releasePath. The active source checkout is unaffected."
+  }
+  Write-Host "[MAW] Reusing detached snapshot: $releasePath"
+}
+
+# The release checkout is now the only checkout we install/build into.
+$installSha = (& $git -C $releasePath rev-parse HEAD | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $installSha -ne $latestSha) {
+  throw 'Release snapshot does not match the requested commit.'
 }
 
 Write-Host '[MAW 3/5] Installing repository-locked dependencies'
-Push-Location -LiteralPath $RepoRoot
+Push-Location -LiteralPath $releasePath
 try {
   Write-Host '[MAW 3/5] Preflighting versioned npm lock dependency edges'
   Invoke-Native $node @('--test', 'scripts/tests/maw-npm-lock-smoke.cjs')
@@ -132,17 +173,18 @@ try {
 }
 
 Write-Host '[MAW 5/5] Repairing MAW launchers and exercising all three commands'
-$installer = Join-Path $RepoRoot 'scripts\install-maw-windows.ps1'
+$installer = Join-Path $releasePath 'scripts\install-maw-windows.ps1'
 if (-not (Test-Path -LiteralPath $installer)) {
   throw "Source is missing Windows launcher installer: $installer"
 }
 & $installer -RepairManagedLaunchers -VerifyLaunch
 if (-not $?) { throw 'Windows launcher installation failed.' }
 
-$installedSha = (& $git -C $RepoRoot rev-parse HEAD | Out-String).Trim()
+$installedSha = (& $git -C $releasePath rev-parse HEAD | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $installedSha -ne $latestSha) {
   throw 'Installed checkout no longer matches the commit fetched at the start.'
 }
-Write-Host "MAW source verified at $installedSha"
+Write-Host "MAW installed snapshot verified at $installedSha"
+Write-Host "Active agent checkout preserved: $RepoRoot"
 Write-Host 'Launch from this PowerShell: lab-maw'
 Write-Host 'Inside MAW, /mcp checks the real Lab handshake (not proven by --version).'
