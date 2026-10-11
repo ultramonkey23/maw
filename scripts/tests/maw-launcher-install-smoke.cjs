@@ -64,9 +64,9 @@ test(
       preferred,
     );
     // Android ARM64 evidence must not silently raise MAW's cross-platform
-    // Bun floor or rewrite the generic Bun package used by other platforms.
+    // Bun floor or restore the retired self-installing npm Bun wrapper.
     assert.equal(packageJson.engines.bun, '>=1.3.14');
-    assert.equal(packageJson.dependencies.bun, '1.3.14');
+    assert.equal(packageJson.dependencies.bun, undefined);
 
     const bootstrap = fs.readFileSync(
       path.join(repoRoot, 'scripts', 'bootstrap-termux-bun.sh'),
@@ -104,17 +104,14 @@ test(
       packageLock,
       /"node_modules\/@oven\/bun-linux-aarch64-android": \{\s*"version": "1\.4\.2"/,
     );
-    assert.match(
-      packageLock,
-      /"node_modules\/bun": \{[\s\S]*?"version": "1\.3\.14"/,
-    );
+    assert.doesNotMatch(packageLock, /"node_modules\/bun": \{/);
 
     const bunLock = fs.readFileSync(path.join(repoRoot, 'bun.lock'), 'utf8');
     assert.match(
       bunLock,
       /"@oven\/bun-linux-aarch64-android": \["@oven\/bun-linux-aarch64-android@1\.4\.2"/,
     );
-    assert.match(bunLock, /"bun": \["bun@1\.3\.14"/);
+    assert.doesNotMatch(bunLock, /"bun": \["bun@1\.3\.14"/);
   },
 );
 
