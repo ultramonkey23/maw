@@ -1,6 +1,6 @@
 # Copyright 2026 Ultramonkeydog. SPDX-License-Identifier: Apache-2.0
 param(
-  [string]$BinDir = (Join-Path $HOME '.local\bin'),
+  [string]$BinDir = (Join-Path $HOME '.local\maw-bin'),
   [switch]$NoUserPathUpdate,
   [switch]$RepairManagedLaunchers,
   [switch]$VerifyLaunch
@@ -50,27 +50,39 @@ function Test-PathContainsDirectory {
   return $false
 }
 
+function Move-PathEntryToFront {
+  param([string]$PathValue, [string]$Directory)
+  # Preserve every other PATH element (including ones managed by agents).
+  # Put the MAW-owned launcher directory first so a pre-existing foreign
+  # command with the same name never wins command resolution.
+  $wanted = Normalize-PathEntry -PathEntry $Directory
+  $others = @()
+  foreach ($part in ($PathValue -split ';')) {
+    if ([string]::IsNullOrWhiteSpace($part)) { continue }
+    $actual = Normalize-PathEntry -PathEntry $part
+    if (-not [string]::Equals($actual, $wanted, [StringComparison]::OrdinalIgnoreCase)) {
+      $others += $part
+    }
+  }
+  return (@($Directory) + $others) -join ';'
+}
+
 function Ensure-LauncherPath {
   param([string]$Directory)
 
   if (-not $NoUserPathUpdate) {
     $userPath = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User)
-    if (-not (Test-PathContainsDirectory -PathValue $userPath -Directory $Directory)) {
-      $newUserPath = if ([string]::IsNullOrWhiteSpace($userPath)) {
-        $Directory
-      } else {
-        "$Directory;$userPath"
-      }
+    $newUserPath = Move-PathEntryToFront -PathValue $userPath -Directory $Directory
+    if ($newUserPath -cne $userPath) {
       [Environment]::SetEnvironmentVariable('Path', $newUserPath, [EnvironmentVariableTarget]::User)
-      Write-Output "Added $Directory to the persistent user PATH"
+      Write-Output "Prioritized $Directory in persistent user PATH"
     }
   } else {
     Write-Output "Skipped persistent user PATH update for $Directory"
   }
 
-  if (-not (Test-PathContainsDirectory -PathValue $env:Path -Directory $Directory)) {
-    $env:Path = if ([string]::IsNullOrWhiteSpace($env:Path)) { $Directory } else { "$Directory;$env:Path" }
-  }
+  $env:Path = Move-PathEntryToFront -PathValue $env:Path -Directory $Directory
+  Write-Output "MAW-owned launcher directory is first on this session PATH: $Directory"
 }
 
 function Get-LauncherState {
