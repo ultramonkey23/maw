@@ -30,6 +30,46 @@ maw-lab --help
 lab-maw --help
 ```
 
+### Recover or upgrade an existing Windows checkout
+
+Run in **Windows PowerShell** from your existing MAW checkout (normally
+`C:\\Users\\harin\\maw`), with Node 24+ and Bun 1.3.14+ on PATH:
+
+```powershell
+git status --short
+git branch --show-current
+git pull --ff-only origin main
+npm ci
+npm run build
+& .\\scripts\\install-maw-windows.ps1 -RepairManagedLaunchers -VerifyLaunch
+Get-Command lab-maw -All
+lab-maw --version
+```
+
+Use this update sequence on the `main` branch. `git pull --ff-only` refuses a
+divergent history; resolve any local work deliberately rather than resetting or
+discarding it. `npm ci` installs the repository's locked dependency versions
+and `npm run build` builds the current source. **Do not replace this fork by
+installing the generic upstream `@vybestack/llxprt-code` package.**
+
+`-RepairManagedLaunchers` backs up old recognized MAW launcher files under
+unique `.maw-backup-...` names before replacing stale customized `.cmd`
+wrappers with wrappers pointing at this checkout. The default installer mode
+continues to preserve modified launchers; unrelated files, symlinks and
+PowerShell aliases are never silently replaced. `-VerifyLaunch` actually
+invokes each installed command with `--version` and stops on nonzero exit,
+rather than reporting success solely because the `.cmd` file exists.
+PowerShell alias/function shadowing or another PATH entry is reported as a
+resolution failure. Running the installer in the **same PowerShell window**
+updates that session's PATH; launching it with `powershell -File` requires
+opening a new terminal for the parent session to see the updated PATH.
+
+If the version check fails, inspect the error above it. Run `node --version`,
+`bun --version`, and `Get-Command lab-maw -All`. A source install requires the
+Bun runtime and native dependencies in addition to the command shim.
+The installer never changes your OpenRouter credentials, profiles, or Lab
+registry.
+
 The installer refreshes only unchanged MAW-managed launchers. Existing legacy
 or user-modified MAW launchers are preserved, and a missing Lab alias is cloned
 from the existing Lab launcher so custom arguments survive the upgrade.
