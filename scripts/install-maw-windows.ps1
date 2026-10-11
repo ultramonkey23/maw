@@ -1,13 +1,16 @@
 # Copyright 2026 Ultramonkeydog. SPDX-License-Identifier: Apache-2.0
 param(
   [string]$BinDir = (Join-Path $HOME '.local\bin'),
-  [switch]$NoUserPathUpdate
+  [switch]$NoUserPathUpdate,
+  [switch]$RepairManagedLaunchers,
+  [switch]$VerifyLaunch
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $cliBin = Join-Path $repoRoot 'packages\cli\bin'
-# Validate that the installing shell has a PATH-resolved Node. Generated launchers resolve node.exe again at launch time.\n$null = Get-Command node -CommandType Application -ErrorAction Stop
+# Validate that the installing shell has a PATH-resolved Node. Generated launchers resolve node.exe again at launch time.
+$null = Get-Command node -CommandType Application -ErrorAction Stop
 $managedMarker = 'MAW managed launcher'
 $BinDir = [IO.Path]::GetFullPath($BinDir)
 
@@ -146,10 +149,17 @@ function Install-OrPreserveLauncher {
   } elseif ($state -eq 'managed' -and (Test-LegacyGeneratedManagedBody -Body $existing -EntryPath $entryPath)) {
     [IO.File]::WriteAllText($target, $body, [Text.Encoding]::ASCII)
     Write-Output "Upgraded generated launcher $target"
+  } elseif ($RepairManagedLaunchers -and ($state -eq 'managed' -or $state -eq 'legacy')) {
+    # Explicit repair is opt-in; keep a unique byte-for-byte backup before
+    # replacing a launcher that may contain user-specific modifications.
+    $backup = "$target.maw-backup-$([guid]::NewGuid().ToString('N'))"
+    Copy-Item -LiteralPath $target -Destination $backup -ErrorAction Stop
+    [IO.File]::WriteAllText($target, $body, [Text.Encoding]::ASCII)
+    Write-Output "Repaired $target (previous launcher backed up to $backup)"
   } elseif ($state -eq 'managed') {
-    Write-Output "Preserved modified managed launcher $target"
+    Write-Output "Preserved modified managed launcher $target (use -RepairManagedLaunchers to back up and replace)"
   } elseif ($state -eq 'legacy') {
-    Write-Output "Preserved existing customized launcher $target"
+    Write-Output "Preserved existing customized launcher $target (use -RepairManagedLaunchers to back up and replace)"
   }
 }
 
@@ -173,7 +183,12 @@ function Clone-MissingLabPeer {
 function Assert-LauncherResolution {
   param([string]$Name)
   $expected = [IO.Path]::GetFullPath((Join-Path $BinDir "$Name.cmd"))
-  $command = Get-Command $Name -CommandType Application -ErrorAction Stop
+  # Honor actual PowerShell precedence: an alias or function can shadow the
+  # installed .cmd even when Get-Command -CommandType Application succeeds.
+  $command = Get-Command $Name -ErrorAction Stop
+  if ($command.CommandType -ne 'Application') {
+    throw "$Name is shadowed by $($command.CommandType) '$($command.Name)'. Remove or rename that override before testing the .cmd launcher."
+  }
   $resolved = [IO.Path]::GetFullPath($command.Source)
   if (-not [string]::Equals($resolved, $expected, [StringComparison]::OrdinalIgnoreCase)) {
     throw "$Name resolves to $resolved instead of $expected"
@@ -197,6 +212,16 @@ Ensure-LauncherPath -Directory $BinDir
 Assert-LauncherResolution -Name 'maw'
 Assert-LauncherResolution -Name 'maw-lab'
 Assert-LauncherResolution -Name 'lab-maw'
+if ($VerifyLaunch) {
+  foreach ($name in $launchers.Keys) {
+    $target = Join-Path $BinDir "$name.cmd"
+    Write-Output "Testing $name --version"
+    & $target --version
+    if ($LASTEXITCODE -ne 0) {
+      throw "$name launcher exists but failed to execute (exit code $LASTEXITCODE). Check the error printed above, Node 24+, Bun dependencies, and the MAW build."
+    }
+  }
+}
 Write-Output "MAW commands ready from any working directory: maw, maw-lab, lab-maw ($BinDir)"
 if (-not $NoUserPathUpdate) {
   Write-Output 'The user PATH is persistent for future shells. If this installer was launched in a child PowerShell, open a fresh terminal/session before invoking MAW by name.'
