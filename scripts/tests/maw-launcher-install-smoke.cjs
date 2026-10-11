@@ -299,6 +299,43 @@ test(
 );
 
 test(
+  'Windows MAW launchers coexist with an unrelated maw.cmd and take PATH priority',
+  { skip: process.platform !== 'win32' },
+  () => {
+    const engine = findPowerShell();
+    assert.ok(engine, 'PowerShell executable not found');
+    const root = fixtureRoot();
+    try {
+      const foreignBin = path.join(root, 'foreign-bin');
+      const mawBin = path.join(root, 'maw-bin');
+      const nodeDir = path.join(root, 'node');
+      for (const dir of [foreignBin, nodeDir]) fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(process.execPath, path.join(nodeDir, 'node.exe'));
+      const foreign = path.join(foreignBin, 'maw.cmd');
+      fs.writeFileSync(foreign, '@echo off\\r\\necho foreign existing command\\r\\n', 'ascii');
+      const expected = path.join(mawBin, 'maw.cmd');
+      const script = path.join(root, 'scripts', 'install-maw-windows.ps1');
+
+      const command = [
+        "$ErrorActionPreference = 'Stop'",
+        `$env:Path = ${psQuote(`${foreignBin};${nodeDir}`)}`,
+        `& ${psQuote(script)} -RepoRoot ${psQuote(root)} -BinDir ${psQuote(mawBin)} -NoUserPathUpdate`,
+        `$resolved = (Get-Command maw -CommandType Application -ErrorAction Stop).Source`,
+        `if (-not [string]::Equals([IO.Path]::GetFullPath($resolved), [IO.Path]::GetFullPath(${psQuote(expected)}), [StringComparison]::OrdinalIgnoreCase)) { throw 'MAW directory was not prioritized' }`,
+        `if ($env:Path.Split(';')[0] -ne ${psQuote(mawBin)}) { throw 'MAW PATH precedence not applied' }`,
+        `if ((& ${psQuote(expected)}) -ne (Get-Location).Path) { throw 'Installed MAW launcher failed' }`,
+      ].join('; ');
+      const result = spawnSync(engine, ['-NoProfile', '-Command', command], { encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.equal(fs.readFileSync(foreign, 'ascii'), '@echo off\\r\\necho foreign existing command\\r\\n');
+      assert.ok(fs.existsSync(expected));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
   'Windows installer upgrades only the previous generated absolute-Node launcher',
   { skip: process.platform !== 'win32' },
   () => {
