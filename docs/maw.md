@@ -49,13 +49,18 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; $p = Join-Path $env:TEMP 'main
 Then enter `lab-maw`. This checks the MAW fork at `$HOME\maw`, fetches
 the latest `main`, refuses to discard local edits or divergent commits,
 fast-forwards, uses the existing Bun executable for a native Windows dependency
-install (or npm if Bun is unavailable), runs `npm run build`, backs up and repairs
-recognized MAW launchers, and invokes `--version` on all three commands.
+install, quarantines obsolete workspace `node_modules/.bin/bun*` shortcuts left by
+the retired Bun npm package (backup only, not deletion), builds directly via
+the known working Bun executable, repairs recognized MAW launchers, and invokes
+`--version` on all three commands.
 The Bun path first attempts `--frozen-lockfile`; if the current Bun version still
 rejects that graph, it can install with `--no-save` without modifying tracked
 manifests/locks and reports that frozen reproducibility remains unverified.
 This avoids the npm transitive optional native Bun binary installation failure.
-Node 24+, Git and npm must be available. Use `& $p -CheckOnly` to inspect
+Node 24+, Git, npm, and a standalone Bun 1.3.14+ must be available.
+The obsolete Bun shortcuts are backed up within the repository's ignored
+`node_modules/.maw-retired-bun-shims/` directory; other tools remain untouched.
+Use `& $p -CheckOnly` to inspect
 local vs remote source without installing. The script reports the commit
 SHA, since the package version does not necessarily change on every commit.
 `--version` verifies command startup, not the live Lab MCP handshake.
