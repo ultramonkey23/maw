@@ -1,13 +1,20 @@
 # Copyright 2026 Ultramonkeydog. SPDX-License-Identifier: Apache-2.0
 param(
   [string]$BinDir = (Join-Path $HOME '.local\maw-bin'),
+  [string]$RepoRoot = '',
   [switch]$NoUserPathUpdate,
   [switch]$RepairManagedLaunchers,
   [switch]$VerifyLaunch
 )
 
 $ErrorActionPreference = 'Stop'
-$repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+# Default to the installer script's own checkout; a specific already built
+# release snapshot may be supplied for launcher-only repair without reinstall.
+$repoRoot = if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+  (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..') -ErrorAction Stop).Path
+} else {
+  (Resolve-Path -LiteralPath $RepoRoot -ErrorAction Stop).Path
+}
 $cliBin = Join-Path $repoRoot 'packages\cli\bin'
 # Validate that the installing shell has a PATH-resolved Node. Generated launchers resolve node.exe again at launch time.
 $null = Get-Command node -CommandType Application -ErrorAction Stop
