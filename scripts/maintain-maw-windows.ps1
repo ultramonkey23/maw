@@ -115,35 +115,27 @@ try {
   foreach ($relativePath in $lockedFiles) {
     $lockHashes[$relativePath] = (Get-FileHash -Algorithm SHA256 -LiteralPath $relativePath).Hash
   }
-  if ($null -ne $bunCmd) {
-    $bun = $bunCmd.Source
-    $bunVersion = (& $bun --version | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $bunVersion -notmatch '^(\d+\.\d+\.\d+)') {
-      throw "Bun at $bun did not report a valid version."
-    }
-    if ([version]$Matches[1] -lt [version]'1.3.14') {
-      throw "Bun $bunVersion is too old: requires >=1.3.14. Update Bun and rerun."
-    }
-    Write-Host "[MAW] Installing with existing Bun $bunVersion (native Windows runtime)."
-    try {
-      Invoke-Native $bun @('install', '--frozen-lockfile')
-    } catch {
-      # Bun versions can disagree about how older lock graphs are normalized.
-      # Allow full verified dependency installation without writing a new
-      # lockfile or changing package manifests; surface reproducibility drift.
-      Write-Warning "Bun frozen install failed: $($_.Exception.Message)"
-      Write-Warning 'Trying Bun --no-save recovery (keeps tracked lockfiles intact; this is not a frozen proof).'
-      Invoke-Native $bun @('install', '--no-save', '--registry=https://registry.npmjs.org/')
-      Write-Warning 'Bun completed a non-frozen recovery. Repository lockfile synchronization still needs separate validation.'
-    }
-  } else {
-    # No standalone Bun: use the npm path with optional platform packages
-    # explicitly enabled. Never suppress lifecycle scripts or integrity checks.
-    Write-Host '[MAW] No existing Bun on PATH; attempting npm clean install.'
-    Invoke-Native $npm @(
-      'ci', '--include=optional', '--include=dev',
-      '--registry=https://registry.npmjs.org/', '--no-audit', '--no-fund'
-    )
+  if ($null -eq $bunCmd) {
+    throw 'MAW builds from source with Bun 1.3.14+; no external Bun executable was found on PATH. Install the standalone Bun runtime and rerun. npm alone cannot build this checkout.'
+  }
+  $bun = $bunCmd.Source
+  $bunVersion = (& $bun --version | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0 -or $bunVersion -notmatch '^(\d+\.\d+\.\d+)') {
+    throw "Bun at $bun did not report a valid version."
+  }
+  if ([version]$Matches[1] -lt [version]'1.3.14') {
+    throw "Bun $bunVersion is too old: requires >=1.3.14. Update Bun and rerun."
+  }
+  Write-Host "[MAW] Installing with existing Bun $bunVersion (native Windows runtime)."
+  try {
+    Invoke-Native $bun @('install', '--frozen-lockfile')
+  } catch {
+    # Do not mutate tracked dependency manifests/lockfiles; a non-frozen
+    # recovery is explicitly reported as such, not as reproducibility proof.
+    Write-Warning "Bun frozen install failed: $($_.Exception.Message)"
+    Write-Warning 'Trying Bun --no-save recovery (keeps tracked lockfiles intact; this is not a frozen proof).'
+    Invoke-Native $bun @('install', '--no-save', '--registry=https://registry.npmjs.org/')
+    Write-Warning 'Bun completed a non-frozen recovery. Repository lockfile synchronization still needs separate validation.'
   }
   foreach ($relativePath in $lockedFiles) {
     $afterHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $relativePath).Hash
@@ -151,8 +143,17 @@ try {
       throw "Installation modified tracked dependency manifest/lockfile $relativePath. Changes were preserved for inspection; refusing to continue."
     }
   }
+  # The retired bun npm dependency can leave broken Windows .bin trampolines.
+  # Back them up only after checking they are no longer declared anywhere.
+  # This repairs nested npm script resolution without deleting dependencies.
+  Write-Host '[MAW] Verifying Windows Bun executable shim cleanup'
+  Invoke-Native $node @('--test', 'scripts/tests/maw-windows-bun-shim-repair.test.cjs')
+  Invoke-Native $node @('scripts/repair-maw-windows-bun-shims.cjs', $RepoRoot)
+
   Write-Host '[MAW 4/5] Building MAW from current source'
-  Invoke-Native $npm @('run', 'build')
+  # Absolute Bun bypasses any stale node_modules/.bin remapping at entry;
+  # the cleanup above also fixes nested npm run build/generate workspaces.
+  Invoke-Native $bun @('scripts/build.ts')
 } finally {
   Pop-Location
 }
