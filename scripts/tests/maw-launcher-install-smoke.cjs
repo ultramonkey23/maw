@@ -312,7 +312,7 @@ test(
       for (const dir of [foreignBin, nodeDir]) fs.mkdirSync(dir, { recursive: true });
       fs.copyFileSync(process.execPath, path.join(nodeDir, 'node.exe'));
       const foreign = path.join(foreignBin, 'maw.cmd');
-      fs.writeFileSync(foreign, '@echo off\\r\\necho foreign existing command\\r\\n', 'ascii');
+      fs.writeFileSync(foreign, '@echo off\r\necho foreign existing command\r\n', 'ascii');
       const expected = path.join(mawBin, 'maw.cmd');
       const script = path.join(root, 'scripts', 'install-maw-windows.ps1');
 
@@ -327,7 +327,7 @@ test(
       ].join('; ');
       const result = spawnSync(engine, ['-NoProfile', '-Command', command], { encoding: 'utf8' });
       assert.equal(result.status, 0, result.stderr || result.stdout);
-      assert.equal(fs.readFileSync(foreign, 'ascii'), '@echo off\\r\\necho foreign existing command\\r\\n');
+      assert.equal(fs.readFileSync(foreign, 'ascii'), '@echo off\r\necho foreign existing command\r\n');
       assert.ok(fs.existsSync(expected));
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
