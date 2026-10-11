@@ -1,61 +1,61 @@
 // Copyright 2026 Ultramonkeydog. SPDX-License-Identifier: Apache-2.0
-// Regression for the cross-platform Bun optional-package lock graph.
-//
-// npm ci checks optional packages even when the target platform is Windows.
-// Root MAW intentionally keeps the Termux Android 1.4.2 pin while the
-// 1.3.14 bun package and CLI workspace each request Android 1.3.14.
-// Both nested locations must be present in npm's lockfile v3.
+// Real lock regression: MAW uses external Bun for source builds, and
+// platform-native @oven packages for its published CLI launchers.
+// Do not reintroduce the self-installing "bun" npm wrapper: its postinstall
+// fails to resolve native optional binaries on Windows.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 
 const root = path.resolve(__dirname, '..', '..');
-const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-const cliManifest = JSON.parse(fs.readFileSync(path.join(root, 'packages', 'cli', 'package.json'), 'utf8'));
-const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-const packages = lock.packages;
-// Bun text lockfiles allow trailing commas (JSONC-style).
+const readJSON = (p) => JSON.parse(fs.readFileSync(path.join(root, p), 'utf8'));
+const manifest = readJSON('package.json');
+const cliManifest = readJSON('packages/cli/package.json');
+const lock = readJSON('package-lock.json');
+const pk = lock.packages;
 const bunLock = JSON.parse(
   fs.readFileSync(path.join(root, 'bun.lock'), 'utf8').replace(/,(\s*[}\]])/g, '$1'),
 );
 const android = '@oven/bun-linux-aarch64-android';
 
-function locked(pathname, version) {
-  const entry = packages[pathname];
-  assert.ok(entry, `Missing locked package ${pathname}`);
-  assert.equal(entry.version, version, `Incorrect locked version for ${pathname}`);
-  assert.equal(entry.optional, true, `Not marked optional: ${pathname}`);
-  assert.match(entry.resolved, /^https:\/\/registry\.npmjs\.org\//);
+function nativeLocked(platform, version) {
+  const entry = pk['node_modules/' + platform];
+  assert.ok(entry, `Missing native package: ${platform}`);
+  assert.equal(entry.version, version, `Wrong pinned native version: ${platform}`);
+  assert.equal(entry.optional, true);
   assert.match(entry.integrity, /^sha512-/);
+  assert.match(entry.resolved, /^https:\/\/registry\.npmjs\.org\//);
+  const bunEntry = bunLock.packages[platform];
+  assert.ok(bunEntry, `Missing Bun-native lock entry ${platform}`);
+  assert.equal(bunEntry[0], `${platform}@${version}`);
 }
 
-test('Bun Android platform variants preserve both Windows lock consistency and Termux pin', () => {
+test('Windows and Android Bun platform packages are locked without self-installing Bun wrapper', () => {
   assert.equal(lock.lockfileVersion, 3);
+  assert.equal(manifest.engines.bun, '>=1.3.14');
+  assert.equal(manifest.dependencies?.bun, undefined);
+  assert.equal(cliManifest.dependencies?.bun, undefined);
+  assert.ok(!manifest.trustedDependencies.includes('bun'));
+  assert.equal(pk[''].dependencies?.bun, undefined);
+  assert.equal(pk['packages/cli'].dependencies?.bun, undefined);
+  assert.equal(pk['node_modules/bun'], undefined);
+  assert.equal(bunLock.workspaces[''].dependencies?.bun, undefined);
+  assert.equal(bunLock.workspaces['packages/cli'].dependencies?.bun, undefined);
+  assert.equal(bunLock.packages.bun, undefined);
   assert.equal(manifest.optionalDependencies[android], '1.4.2');
   assert.equal(cliManifest.optionalDependencies[android], '1.3.14');
-  assert.equal(packages[''].optionalDependencies[android], '1.4.2');
-  assert.equal(packages['packages/cli'].optionalDependencies[android], '1.3.14');
-  assert.equal(packages['node_modules/bun'].optionalDependencies[android], '1.3.14');
-
-  locked('node_modules/' + android, '1.4.2');
-  locked('packages/cli/node_modules/' + android, '1.3.14');
-  locked('node_modules/bun/node_modules/' + android, '1.3.14');
-  // The Bun lock must preserve BOTH sides of the split Android pin as well.
-  // Without these nested entries Bun 1.4.2 re-resolves and frozen install fails.
-  const bp = bunLock.packages;
+  assert.equal(pk[''].optionalDependencies[android], '1.4.2');
+  assert.equal(pk['packages/cli'].optionalDependencies[android], '1.3.14');
   assert.equal(bunLock.workspaces[''].optionalDependencies[android], '1.4.2');
   assert.equal(bunLock.workspaces['packages/cli'].optionalDependencies[android], '1.3.14');
-  assert.equal(bp[android][0], android + '@1.4.2');
-  assert.equal(bp['bun/' + android][0], android + '@1.3.14');
-  assert.equal(bp['@vybestack/llxprt-code/' + android][0], android + '@1.3.14');
-
-  // Windows x64 binary alternatives must be in the frozen npm tree before
-  // Bun's npm installer runs. A package declaration alone is insufficient.
+  nativeLocked(android, '1.4.2');
+  const cliAndroid = pk['packages/cli/node_modules/' + android];
+  assert.equal(cliAndroid?.version, '1.3.14');
+  assert.equal(bunLock.packages['@vybestack/llxprt-code/' + android][0], android + '@1.3.14');
   for (const platform of ['@oven/bun-windows-x64', '@oven/bun-windows-x64-baseline']) {
     assert.equal(manifest.optionalDependencies[platform], '1.3.14');
     assert.equal(cliManifest.optionalDependencies[platform], '1.3.14');
-    assert.equal(packages['node_modules/bun'].optionalDependencies[platform], '1.3.14');
-    locked('node_modules/' + platform, '1.3.14');
+    nativeLocked(platform, '1.3.14');
   }
 });
