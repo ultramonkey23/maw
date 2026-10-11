@@ -119,6 +119,17 @@ LLxprt Code is a command-line AI assistant designed for developers who want powe
 
 ### Bun Runtime and Install Fallback
 
+**MAW source checkout (Windows):** Building this fork requires an installed
+Bun 1.3.14+ on PATH. The redundant self-installing `bun` npm dependency
+was removed because its lifecycle script failed to resolve Windows native
+packages despite a working standalone Bun. The direct `@oven/bun-*` platform
+packages remain pinned for CLI launcher/runtime discovery. The
+`scripts/maintain-maw-windows.ps1` updater repairs leftover Bun/Bunx
+`node_modules/.bin` trampolines by backing them up inside this checkout,
+then starts the real `scripts/build.ts` with the known-good standalone Bun.
+This source-checkout procedure does not downgrade or modify Termux Bun.
+
+
 LLxprt Code is powered by the [Bun](https://bun.sh) runtime. When you run `llxprt`, the platform-native launcher (`packages/cli/bin/llxprt`) resolves the package-bundled Bun and execs the TypeScript entrypoint (`packages/cli/index.ts`) directly — no Node process is started on the installed command path. The CLI's run path does not require a pre-compiled CLI `dist/` artifact or the retired `bundle/llxprt.js` artifact.
 
 **Bun resolution (production launcher):**
