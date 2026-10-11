@@ -66,6 +66,16 @@ creating a worktree or installing anything.
 `--version` verifies command startup, not the live Lab MCP handshake.
 Once MAW is running, check `/mcp` to confirm Lab attachment.
 
+### Repair launchers without rebuilding an already compiled release
+
+When dependency installation and the full workspace build succeeded but only
+the Windows launcher step failed, use the current installer script with
+`-RepoRoot <path-to-built-snapshot>` to finish installing the launchers
+without running `npm ci` or compiling again. An existing foreign
+`$HOME\.local\bin\maw.cmd` is preserved; MAW installs into its own
+`$HOME\.local\maw-bin` directory. The `-VerifyLaunch` option executes
+`maw`, `maw-lab`, and `lab-maw` using `--version`.
+
 ### Manually build the active development checkout
 
 The commands below intentionally act on the development checkout. They are
@@ -125,10 +135,13 @@ at an installer-time executable that no longer exists. The wrapper sets
 take a `node.exe` from the caller's project directory ahead of the PATH-managed
 runtime.
 
-Unrelated commands are never overwritten. The default launcher directory is
-`$HOME\.local\bin`; if it is missing from the persistent per-user `Path`,
-the installer adds it and verifies that `Get-Command` resolves all three MAW
-commands to the installed launchers. It does not edit PowerShell profile files.
+Unrelated commands are never overwritten. The default Windows launcher
+directory is MAW-owned `$HOME\.local\maw-bin`, separate from the user's
+shared `$HOME\.local\bin`. This prevents a foreign `maw.cmd` from blocking
+installation or being overwritten. The installer puts its own directory first
+in the current session and persistent user `Path` (preserving the other
+entries), then verifies that `Get-Command` resolves all three MAW commands.
+It does not edit PowerShell profile files.
 Use `-NoUserPathUpdate` only when another environment manager owns persistent
 `Path` configuration.
 
