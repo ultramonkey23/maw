@@ -10,10 +10,10 @@ still take precedence, so the preference is a default rather than a lock.
 ## Source setup
 
 From a clean MAW checkout with Node 24+ and an already installed Bun
-1.3.14+ on PATH:
+1.3.14+ on PATH, install workspace dependencies with npm and build with Bun:
 
 ```sh
-bun install
+npm ci
 npm run build
 ```
 
@@ -46,20 +46,12 @@ current PowerShell session, so the repaired PATH is available immediately:
 Set-ExecutionPolicy -Scope Process Bypass -Force; $p = Join-Path $env:TEMP 'maintain-maw-windows.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/ultramonkey23/maw/main/scripts/maintain-maw-windows.ps1' -OutFile $p; & $p
 ```
 
-Then enter `lab-maw`. This checks the MAW fork at `$HOME\maw`, fetches
-the latest `main`, refuses to discard local edits or divergent commits,
-fast-forwards, uses the existing Bun executable for a native Windows dependency
-install, quarantines obsolete workspace `node_modules/.bin/bun*` shortcuts left by
-the retired Bun npm package (backup only, not deletion), builds directly via
-the known working Bun executable, repairs recognized MAW launchers, and invokes
-`--version` on all three commands.
-The Bun path first attempts `--frozen-lockfile`; if the current Bun version still
-rejects that graph, it can install with `--no-save` without modifying tracked
-manifests/locks and reports that frozen reproducibility remains unverified.
-This avoids the npm transitive optional native Bun binary installation failure.
+Then enter `lab-maw`. The updater verifies the MAW fork at `$HOME\maw`,
+fetches and fast-forwards `main` without discarding source edits, then runs
+`npm ci` to replace the broken dependency tree with npm's complete workspace
+links and TypeScript binaries. It builds with the installed Bun executable and
+repairs the three managed MAW launchers.
 Node 24+, Git, npm, and a standalone Bun 1.3.14+ must be available.
-The obsolete Bun shortcuts are backed up within the repository's ignored
-`node_modules/.maw-retired-bun-shims/` directory; other tools remain untouched.
 Use `& $p -CheckOnly` to inspect
 local vs remote source without installing. The script reports the commit
 SHA, since the package version does not necessarily change on every commit.
@@ -75,7 +67,7 @@ Run in **Windows PowerShell** from your existing MAW checkout (normally
 git status --short
 git branch --show-current
 git pull --ff-only origin main
-bun install --frozen-lockfile
+npm ci
 npm run build
 & .\\scripts\\install-maw-windows.ps1 -RepairManagedLaunchers -VerifyLaunch
 Get-Command lab-maw -All
@@ -84,8 +76,8 @@ lab-maw --version
 
 Use this update sequence on the `main` branch. `git pull --ff-only` refuses a
 divergent history; resolve any local work deliberately rather than resetting or
-discarding it. `bun install --frozen-lockfile` installs the locked dependency graph
-without npm's Windows native Bun installer; `npm run build` builds the current source. **Do not replace this fork by
+discarding it. `npm ci` recreates npm's workspace links and TypeScript executable shims using the
+locked dependency graph; `npm run build` builds the current source. **Do not replace this fork by
 installing the generic upstream `@vybestack/llxprt-code` package.**
 
 `-RepairManagedLaunchers` backs up old recognized MAW launcher files under
