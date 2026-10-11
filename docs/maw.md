@@ -30,6 +30,25 @@ maw-lab --help
 lab-maw --help
 ```
 
+### One-command Windows check, update, build, and repair
+
+Paste this in **Windows PowerShell**, from any directory. It runs in your
+current PowerShell session, so the repaired PATH is available immediately:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; $p = Join-Path $env:TEMP 'maintain-maw-windows.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/ultramonkey23/maw/main/scripts/maintain-maw-windows.ps1' -OutFile $p; & $p
+```
+
+Then enter `lab-maw`. This checks the MAW fork at `$HOME\maw`, fetches
+the latest `main`, refuses to discard local edits or divergent commits,
+fast-forwards, runs `npm ci` and `npm run build`, backs up and repairs
+recognized MAW launchers, and invokes `--version` on all three commands.
+Node 24+, Git and npm must be available. Use `& $p -CheckOnly` to inspect
+local vs remote source without installing. The script reports the commit
+SHA, since the package version does not necessarily change on every commit.
+`--version` verifies command startup, not the live Lab MCP handshake.
+Once MAW is running, check `/mcp` to confirm Lab attachment.
+
 ### Recover or upgrade an existing Windows checkout
 
 Run in **Windows PowerShell** from your existing MAW checkout (normally
