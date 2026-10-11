@@ -72,8 +72,8 @@ lab-maw --version
 
 Use this update sequence on the `main` branch. `git pull --ff-only` refuses a
 divergent history; resolve any local work deliberately rather than resetting or
-discarding it. `npm ci` installs the repository's locked dependency versions
-and `npm run build` builds the current source. **Do not replace this fork by
+discarding it. `bun install --frozen-lockfile` installs the locked dependency graph
+without npm's Windows native Bun installer; `npm run build` builds the current source. **Do not replace this fork by
 installing the generic upstream `@vybestack/llxprt-code` package.**
 
 `-RepairManagedLaunchers` backs up old recognized MAW launcher files under
